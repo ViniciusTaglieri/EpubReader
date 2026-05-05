@@ -48,6 +48,30 @@ export function buildReaderDocument(contents: string) {
         text-align: left;
       }
 
+      html {
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--reader-ink) 42%, transparent) color-mix(in srgb, var(--reader-background) 84%, var(--reader-ink));
+      }
+
+      ::-webkit-scrollbar {
+        width: 10px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: color-mix(in srgb, var(--reader-background) 84%, var(--reader-ink));
+      }
+
+      ::-webkit-scrollbar-thumb {
+        min-height: 48px;
+        border: 2px solid var(--reader-background);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--reader-ink) 42%, transparent);
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: color-mix(in srgb, var(--reader-ink) 60%, transparent);
+      }
+
       * {
         box-sizing: border-box;
         max-width: 100%;

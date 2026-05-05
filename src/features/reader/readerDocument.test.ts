@@ -23,4 +23,11 @@ describe("readerDocument", () => {
     expect(document).toContain("max-width: 100%");
     expect(document).not.toContain("<body><html");
   });
+
+  it("includes themed scrollbar styling for continuous scroll mode", () => {
+    const document = buildReaderDocument("<p>Texto</p>");
+
+    expect(document).toContain("scrollbar-width: thin");
+    expect(document).toContain("::-webkit-scrollbar-thumb");
+  });
 });
