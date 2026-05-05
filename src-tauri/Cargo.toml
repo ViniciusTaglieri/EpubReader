@@ -16,6 +16,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22"
 hex = "0.4"
 roxmltree = "0.20"
 rusqlite = { version = "0.32", features = ["bundled"] }

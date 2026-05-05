@@ -105,6 +105,17 @@ export function buildReaderDocument(contents: string) {
         font-variant-ligatures: common-ligatures;
       }
 
+      #reader-root .reader-spine-section {
+        display: block;
+        break-before: column;
+        page-break-before: always;
+      }
+
+      #reader-root .reader-spine-section:first-child {
+        break-before: auto;
+        page-break-before: auto;
+      }
+
       #reader-root img,
       #reader-root svg,
       #reader-root video,
@@ -112,6 +123,11 @@ export function buildReaderDocument(contents: string) {
         max-width: 100% !important;
         height: auto !important;
         break-inside: avoid;
+      }
+
+      #reader-root img {
+        display: block;
+        object-fit: contain;
       }
 
       #reader-root pre {

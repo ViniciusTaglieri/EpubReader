@@ -45,6 +45,8 @@ export const commands = {
     invoke<void>("delete_collection", { collectionId }),
   getBookManifest: (bookId: string) =>
     invoke<EpubManifestDto>("get_book_manifest", { bookId }),
+  getBookRendition: (bookId: string) =>
+    invoke<ResourceDto>("get_book_rendition", { bookId }),
   getSpineResource: (bookId: string, href: string) =>
     invoke<ResourceDto>("get_spine_resource", { bookId, href }),
   getCover: (bookId: string) => invoke<number[]>("get_cover", { bookId }),

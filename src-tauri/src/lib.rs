@@ -38,6 +38,7 @@ pub fn run() {
             commands::collections::remove_book_from_collection,
             commands::collections::delete_collection,
             commands::reader::get_book_manifest,
+            commands::reader::get_book_rendition,
             commands::reader::get_spine_resource,
             commands::reader::get_cover,
             commands::reader::save_progress,
