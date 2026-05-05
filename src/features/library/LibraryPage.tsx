@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { BookCard } from "./BookCard";
 import { ImportButton } from "./ImportButton";
+import { epubPathsFromDrop } from "./importPaths";
 import {
   filterAndSortBooks,
   type LibraryFilters,
@@ -72,14 +73,34 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
     }
   }
 
-  async function importBook(path: string) {
+  async function importBooks(paths: string[]) {
+    const uniquePaths = Array.from(new Set(paths));
+    if (!uniquePaths.length) {
+      setMessage("Selecione ou arraste arquivos EPUB validos.");
+      return;
+    }
+
     setIsImporting(true);
+    let importedCount = 0;
+    const failures: string[] = [];
+
     try {
-      const imported = await commands.importEpub(path);
+      for (const path of uniquePaths) {
+        try {
+          await commands.importEpub(path);
+          importedCount += 1;
+        } catch (error) {
+          failures.push(`${fileNameFromPath(path)}: ${errorMessage(error)}`);
+        }
+      }
       await refreshBooks();
-      setMessage(`"${imported.title}" esta na biblioteca.`);
-    } catch (error) {
-      setMessage(errorMessage(error));
+      if (failures.length) {
+        setMessage(
+          `${importedCount} EPUB(s) importado(s). Falhas: ${failures.join(" | ")}`
+        );
+      } else {
+        setMessage(`${importedCount} EPUB(s) importado(s) para a biblioteca.`);
+      }
     } finally {
       setIsImporting(false);
     }
@@ -99,11 +120,11 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
 
   function handleDrop(event: React.DragEvent<HTMLElement>) {
     event.preventDefault();
-    const file = event.dataTransfer.files[0] as File & { path?: string };
-    if (file?.path?.toLowerCase().endsWith(".epub")) {
-      void importBook(file.path);
+    const paths = epubPathsFromDrop(event.dataTransfer.files as unknown as Iterable<File & { path?: string }>);
+    if (paths.length) {
+      void importBooks(paths);
     } else {
-      setMessage("Arraste um arquivo EPUB valido.");
+      setMessage("Arraste um ou mais arquivos EPUB validos.");
     }
   }
 
@@ -134,7 +155,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
           />
         </label>
 
-        <ImportButton onImport={importBook} disabled={isImporting} />
+        <ImportButton onImport={importBooks} disabled={isImporting} />
       </header>
 
       <div className="grid min-h-[calc(100vh-5rem)] grid-cols-[15rem_1fr]">
@@ -269,9 +290,13 @@ function EmptyState({ title }: { title: string }) {
         <BookMarked className="mx-auto text-amber-300" size={42} />
         <p className="mt-4 text-lg font-semibold text-white">{title}</p>
         <p className="mt-2 max-w-md text-sm text-neutral-400">
-          Use Importar EPUB ou arraste um arquivo .epub para iniciar o Ingestion Pipeline.
+          Use Importar EPUB ou arraste um ou mais arquivos .epub para iniciar o Ingestion Pipeline.
         </p>
       </div>
     </div>
   );
+}
+
+function fileNameFromPath(path: string): string {
+  return path.split(/[\\/]/).pop() ?? path;
 }

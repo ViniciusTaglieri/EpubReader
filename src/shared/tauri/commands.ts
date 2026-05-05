@@ -8,18 +8,19 @@ import type {
   ReadingSettingsDto,
   ResourceDto
 } from "../types/books";
+import { normalizePickedEpubPaths } from "../../features/library/importPaths";
 
 export type AppError = {
   code: string;
   message: string;
 };
 
-export async function pickEpubFile(): Promise<string | null> {
+export async function pickEpubFiles(): Promise<string[]> {
   const selected = await open({
-    multiple: false,
+    multiple: true,
     filters: [{ name: "EPUB", extensions: ["epub"] }]
   });
-  return typeof selected === "string" ? selected : null;
+  return normalizePickedEpubPaths(selected);
 }
 
 export const commands = {

@@ -1,16 +1,16 @@
 import { Upload } from "lucide-react";
-import { pickEpubFile } from "../../shared/tauri/commands";
+import { pickEpubFiles } from "../../shared/tauri/commands";
 
 type ImportButtonProps = {
-  onImport: (path: string) => void;
+  onImport: (paths: string[]) => void;
   disabled?: boolean;
 };
 
 export function ImportButton({ onImport, disabled }: ImportButtonProps) {
   async function handleClick() {
-    const path = await pickEpubFile();
-    if (path) {
-      onImport(path);
+    const paths = await pickEpubFiles();
+    if (paths.length) {
+      onImport(paths);
     }
   }
 
