@@ -13,6 +13,8 @@ pub fn run(connection: &Connection) -> Result<(), AppError> {
           language TEXT,
           description TEXT,
           identifier TEXT,
+          published_at TEXT,
+          subjects TEXT NOT NULL DEFAULT '[]',
           file_hash TEXT NOT NULL UNIQUE,
           file_path TEXT NOT NULL,
           cover_path TEXT,
@@ -21,7 +23,8 @@ pub fn run(connection: &Connection) -> Result<(), AppError> {
           last_opened_at TEXT,
           reading_status TEXT NOT NULL DEFAULT 'unread',
           total_progression REAL DEFAULT 0,
-          text_length INTEGER NOT NULL DEFAULT 0
+          text_length INTEGER NOT NULL DEFAULT 0,
+          is_favorite INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS book_progress (
@@ -120,23 +123,57 @@ pub fn run(connection: &Connection) -> Result<(), AppError> {
         "#,
     )?;
     ensure_book_text_length_column(connection)?;
+    ensure_column(
+        connection,
+        "books",
+        "published_at",
+        "ALTER TABLE books ADD COLUMN published_at TEXT",
+    )?;
+    ensure_column(
+        connection,
+        "books",
+        "subjects",
+        "ALTER TABLE books ADD COLUMN subjects TEXT NOT NULL DEFAULT '[]'",
+    )?;
+    ensure_column(
+        connection,
+        "books",
+        "is_favorite",
+        "ALTER TABLE books ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0",
+    )?;
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_books_text_length ON books(text_length)",
+        [],
+    )?;
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_books_favorite ON books(is_favorite)",
         [],
     )?;
     Ok(())
 }
 
 fn ensure_book_text_length_column(connection: &Connection) -> Result<(), AppError> {
-    let mut statement = connection.prepare("PRAGMA table_info(books)")?;
+    ensure_column(
+        connection,
+        "books",
+        "text_length",
+        "ALTER TABLE books ADD COLUMN text_length INTEGER NOT NULL DEFAULT 0",
+    )
+}
+
+fn ensure_column(
+    connection: &Connection,
+    table: &str,
+    column: &str,
+    alter_sql: &str,
+) -> Result<(), AppError> {
+    let pragma = format!("PRAGMA table_info({table})");
+    let mut statement = connection.prepare(&pragma)?;
     let columns = statement
         .query_map([], |row| row.get::<_, String>(1))?
         .collect::<Result<Vec<_>, _>>()?;
-    if !columns.iter().any(|name| name == "text_length") {
-        connection.execute(
-            "ALTER TABLE books ADD COLUMN text_length INTEGER NOT NULL DEFAULT 0",
-            [],
-        )?;
+    if !columns.iter().any(|name| name == column) {
+        connection.execute(alter_sql, [])?;
     }
     Ok(())
 }

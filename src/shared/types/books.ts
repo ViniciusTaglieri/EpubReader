@@ -9,6 +9,8 @@ export type BookDto = {
   language?: string | null;
   description?: string | null;
   identifier?: string | null;
+  publishedAt?: string | null;
+  subjects: string[];
   fileHash: string;
   filePath: string;
   coverPath?: string | null;
@@ -18,6 +20,14 @@ export type BookDto = {
   readingStatus: ReadingStatus;
   totalProgression: number;
   textLength: number;
+  isFavorite: boolean;
+};
+
+export type CollectionDto = {
+  id: string;
+  name: string;
+  createdAt: string;
+  bookIds: string[];
 };
 
 export type BookDetailDto = BookDto & {

@@ -22,6 +22,8 @@ pub struct EpubMetadata {
     pub language: Option<String>,
     pub description: Option<String>,
     pub identifier: Option<String>,
+    pub published_at: Option<String>,
+    pub subjects: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

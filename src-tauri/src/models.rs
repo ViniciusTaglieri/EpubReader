@@ -11,6 +11,8 @@ pub struct BookDto {
     pub language: Option<String>,
     pub description: Option<String>,
     pub identifier: Option<String>,
+    pub published_at: Option<String>,
+    pub subjects: Vec<String>,
     pub file_hash: String,
     pub file_path: String,
     pub cover_path: Option<String>,
@@ -20,6 +22,16 @@ pub struct BookDto {
     pub reading_status: String,
     pub total_progression: f64,
     pub text_length: i64,
+    pub is_favorite: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollectionDto {
+    pub id: String,
+    pub name: String,
+    pub created_at: String,
+    pub book_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

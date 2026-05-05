@@ -11,6 +11,8 @@ const book = (overrides: Partial<BookDto>): BookDto => ({
   language: null,
   description: null,
   identifier: null,
+  publishedAt: null,
+  subjects: [],
   fileHash: "hash",
   filePath: "book.epub",
   coverPath: null,
@@ -20,6 +22,7 @@ const book = (overrides: Partial<BookDto>): BookDto => ({
   readingStatus: "unread",
   totalProgression: 0,
   textLength: 0,
+  isFavorite: false,
   ...overrides
 });
 
@@ -33,6 +36,7 @@ describe("filterAndSortBooks", () => {
     const result = filterAndSortBooks(books, {
       query: "machado",
       status: "all",
+      favorite: "all",
       sortBy: "title"
     });
 
@@ -50,6 +54,7 @@ describe("filterAndSortBooks", () => {
     const result = filterAndSortBooks(books, {
       query: "",
       status: "reading",
+      favorite: "all",
       sortBy: "progress"
     });
 
@@ -66,9 +71,43 @@ describe("filterAndSortBooks", () => {
     const result = filterAndSortBooks(books, {
       query: "",
       status: "all",
+      favorite: "all",
       sortBy: "size"
     });
 
     expect(result.map((item) => item.id)).toEqual(["long", "medium", "short"]);
+  });
+
+  it("sorts books by publication date descending", () => {
+    const books = [
+      book({ id: "old", publishedAt: "1999-01-01" }),
+      book({ id: "new", publishedAt: "2022-01-01" }),
+      book({ id: "unknown", publishedAt: null })
+    ];
+
+    const result = filterAndSortBooks(books, {
+      query: "",
+      status: "all",
+      favorite: "all",
+      sortBy: "published_at"
+    });
+
+    expect(result.map((item) => item.id)).toEqual(["new", "old", "unknown"]);
+  });
+
+  it("filters favorite books", () => {
+    const books = [
+      book({ id: "plain", isFavorite: false }),
+      book({ id: "favorite", isFavorite: true })
+    ];
+
+    const result = filterAndSortBooks(books, {
+      query: "",
+      status: "all",
+      favorite: "favorites",
+      sortBy: "title"
+    });
+
+    expect(result.map((item) => item.id)).toEqual(["favorite"]);
   });
 });

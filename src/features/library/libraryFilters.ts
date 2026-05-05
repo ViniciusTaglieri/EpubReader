@@ -4,13 +4,14 @@ export type LibrarySort =
   | "title"
   | "author"
   | "last_opened"
-  | "imported_at"
+  | "published_at"
   | "progress"
   | "size";
 
 export type LibraryFilters = {
   query: string;
   status: "all" | ReadingStatus;
+  favorite: "all" | "favorites";
   sortBy: LibrarySort;
 };
 
@@ -26,7 +27,8 @@ export function filterAndSortBooks(books: BookDto[], filters: LibraryFilters): B
         normalized(book.title).includes(query) ||
         normalized(book.author).includes(query);
       const matchesStatus = filters.status === "all" || book.readingStatus === filters.status;
-      return matchesQuery && matchesStatus;
+      const matchesFavorite = filters.favorite === "all" || book.isFavorite;
+      return matchesQuery && matchesStatus && matchesFavorite;
     })
     .sort((left, right) => compareBooks(left, right, filters.sortBy));
 }
@@ -52,7 +54,7 @@ function compareBooks(left: BookDto, right: BookDto, sortBy: LibrarySort): numbe
     return dateValue(right.lastOpenedAt) - dateValue(left.lastOpenedAt);
   }
 
-  return dateValue(right.importedAt) - dateValue(left.importedAt);
+  return dateValue(right.publishedAt) - dateValue(left.publishedAt);
 }
 
 function dateValue(value?: string | null): number {

@@ -38,18 +38,18 @@ pub fn get_book(book_id: String, state: State<'_, AppState>) -> Result<BookDetai
 }
 
 #[tauri::command]
-pub fn delete_book(
+pub fn delete_book(book_id: String, state: State<'_, AppState>) -> Result<(), AppError> {
+    let connection = state.db.connect()?;
+    books::delete_book(&connection, &book_id)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_book_favorite(
     book_id: String,
-    delete_file: bool,
+    is_favorite: bool,
     state: State<'_, AppState>,
 ) -> Result<(), AppError> {
     let connection = state.db.connect()?;
-    books::delete_book(&connection, &book_id)?;
-    if delete_file {
-        let book_dir = state.paths.book_dir(&book_id);
-        if book_dir.exists() {
-            std::fs::remove_dir_all(book_dir)?;
-        }
-    }
-    Ok(())
+    books::set_favorite(&connection, &book_id, is_favorite)
 }

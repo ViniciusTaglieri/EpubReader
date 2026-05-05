@@ -47,6 +47,9 @@ fn parse_metadata(document: &Document<'_>) -> EpubMetadata {
         language: first_text(document, "language"),
         description: first_text(document, "description"),
         identifier: first_text(document, "identifier"),
+        published_at: first_text(document, "date")
+            .or_else(|| first_meta_property(document, "dcterms:modified")),
+        subjects: all_text(document, "subject"),
     }
 }
 
@@ -185,6 +188,16 @@ fn first_text(document: &Document<'_>, tag: &str) -> Option<String> {
         .and_then(|node| node.text())
         .map(|text| text.trim().to_string())
         .filter(|text| !text.is_empty())
+}
+
+fn all_text(document: &Document<'_>, tag: &str) -> Vec<String> {
+    document
+        .descendants()
+        .filter(|node| node.has_tag_name(tag))
+        .filter_map(|node| node.text())
+        .map(|text| text.trim().to_string())
+        .filter(|text| !text.is_empty())
+        .collect()
 }
 
 fn first_meta_property(document: &Document<'_>, property: &str) -> Option<String> {

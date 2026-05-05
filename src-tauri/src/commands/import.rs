@@ -79,6 +79,8 @@ pub fn import_epub(path: String, state: State<'_, AppState>) -> Result<BookDto, 
         language: parsed.metadata.language,
         description: parsed.metadata.description,
         identifier: parsed.metadata.identifier,
+        published_at: parsed.metadata.published_at,
+        subjects: parsed.metadata.subjects,
         file_hash,
         file_path: local_epub.to_string_lossy().to_string(),
         cover_path,
@@ -88,6 +90,7 @@ pub fn import_epub(path: String, state: State<'_, AppState>) -> Result<BookDto, 
         reading_status: "unread".to_string(),
         total_progression: 0.0,
         text_length,
+        is_favorite: false,
     };
     books::insert_book(&connection, &book)?;
     Ok(book)
