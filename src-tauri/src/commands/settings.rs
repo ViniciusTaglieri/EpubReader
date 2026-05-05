@@ -1,9 +1,4 @@
-use crate::{
-    db::repositories::settings,
-    error::AppError,
-    models::ReadingSettingsDto,
-    AppState,
-};
+use crate::{db::repositories::settings, error::AppError, models::ReadingSettingsDto, AppState};
 use tauri::State;
 
 #[tauri::command]

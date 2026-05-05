@@ -18,7 +18,10 @@ pub fn create_bookmark(
 }
 
 #[tauri::command]
-pub fn list_bookmarks(book_id: String, state: State<'_, AppState>) -> Result<Vec<BookmarkDto>, AppError> {
+pub fn list_bookmarks(
+    book_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<BookmarkDto>, AppError> {
     let connection = state.db.connect()?;
     annotations::list_bookmarks(&connection, &book_id)
 }
@@ -42,7 +45,10 @@ pub fn create_highlight(
 }
 
 #[tauri::command]
-pub fn list_highlights(book_id: String, state: State<'_, AppState>) -> Result<Vec<HighlightDto>, AppError> {
+pub fn list_highlights(
+    book_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<HighlightDto>, AppError> {
     let connection = state.db.connect()?;
     annotations::list_highlights(&connection, &book_id)
 }

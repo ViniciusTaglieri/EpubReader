@@ -44,7 +44,10 @@ pub fn create_bookmark(
     Ok(bookmark)
 }
 
-pub fn list_bookmarks(connection: &Connection, book_id: &str) -> Result<Vec<BookmarkDto>, AppError> {
+pub fn list_bookmarks(
+    connection: &Connection,
+    book_id: &str,
+) -> Result<Vec<BookmarkDto>, AppError> {
     let mut statement = connection.prepare(
         r#"
         SELECT id, book_id, href, spine_index, progression, total_progression, label, text_snippet, created_at
@@ -129,7 +132,10 @@ pub fn create_highlight(
     Ok(highlight)
 }
 
-pub fn list_highlights(connection: &Connection, book_id: &str) -> Result<Vec<HighlightDto>, AppError> {
+pub fn list_highlights(
+    connection: &Connection,
+    book_id: &str,
+) -> Result<Vec<HighlightDto>, AppError> {
     let mut statement = connection.prepare(
         r#"
         SELECT id, book_id, href, spine_index, progression, total_progression, selected_text,
@@ -164,7 +170,11 @@ pub fn list_highlights(connection: &Connection, book_id: &str) -> Result<Vec<Hig
     Ok(highlights)
 }
 
-pub fn update_highlight_note(connection: &Connection, highlight_id: &str, note: String) -> Result<(), AppError> {
+pub fn update_highlight_note(
+    connection: &Connection,
+    highlight_id: &str,
+    note: String,
+) -> Result<(), AppError> {
     connection.execute(
         "UPDATE highlights SET note = ?1, updated_at = ?2 WHERE id = ?3",
         params![note, Utc::now().to_rfc3339(), highlight_id],

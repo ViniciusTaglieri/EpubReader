@@ -2,7 +2,10 @@ use crate::{error::AppError, models::ReadingSettingsDto};
 use chrono::Utc;
 use rusqlite::{params, Connection};
 
-pub fn update_reading_settings(connection: &Connection, settings: ReadingSettingsDto) -> Result<(), AppError> {
+pub fn update_reading_settings(
+    connection: &Connection,
+    settings: ReadingSettingsDto,
+) -> Result<(), AppError> {
     let now = Utc::now().to_rfc3339();
     connection.execute(
         r#"

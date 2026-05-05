@@ -48,7 +48,10 @@ pub fn save_progress(connection: &Connection, locator: &LocatorDto) -> Result<()
     Ok(())
 }
 
-pub fn get_progress(connection: &Connection, book_id: &str) -> Result<Option<LocatorDto>, AppError> {
+pub fn get_progress(
+    connection: &Connection,
+    book_id: &str,
+) -> Result<Option<LocatorDto>, AppError> {
     connection
         .query_row(
             r#"

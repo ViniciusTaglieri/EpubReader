@@ -161,12 +161,20 @@ fn find_cover_href(document: &Document<'_>, manifest: &[ManifestItem]) -> Option
         .and_then(|node| node.attribute("content"));
 
     if let Some(id) = cover_id {
-        return manifest.iter().find(|item| item.id == id).map(|item| item.href.clone());
+        return manifest
+            .iter()
+            .find(|item| item.id == id)
+            .map(|item| item.href.clone());
     }
 
     manifest
         .iter()
-        .find(|item| item.properties.as_deref().unwrap_or("").contains("cover-image"))
+        .find(|item| {
+            item.properties
+                .as_deref()
+                .unwrap_or("")
+                .contains("cover-image")
+        })
         .map(|item| item.href.clone())
 }
 
@@ -215,8 +223,7 @@ pub fn normalize_href(base: &str, href: &str) -> String {
             _ => {}
         }
     }
-    parts
-        .join("/")
+    parts.join("/")
 }
 
 #[cfg(test)]

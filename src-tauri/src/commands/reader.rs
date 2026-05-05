@@ -8,7 +8,10 @@ use crate::{
 use tauri::State;
 
 #[tauri::command]
-pub fn get_book_manifest(book_id: String, state: State<'_, AppState>) -> Result<EpubManifestDto, AppError> {
+pub fn get_book_manifest(
+    book_id: String,
+    state: State<'_, AppState>,
+) -> Result<EpubManifestDto, AppError> {
     let connection = state.db.connect()?;
     let book = books::get_book(&connection, &book_id)?
         .ok_or_else(|| AppError::new("book_not_found", "Livro nao encontrado"))?;
@@ -56,14 +59,20 @@ pub fn save_progress(
     state: State<'_, AppState>,
 ) -> Result<(), AppError> {
     if book_id != locator.book_id {
-        return Err(AppError::new("locator_mismatch", "Locator pertence a outro livro"));
+        return Err(AppError::new(
+            "locator_mismatch",
+            "Locator pertence a outro livro",
+        ));
     }
     let connection = state.db.connect()?;
     progress::save_progress(&connection, &locator)
 }
 
 #[tauri::command]
-pub fn get_progress(book_id: String, state: State<'_, AppState>) -> Result<Option<LocatorDto>, AppError> {
+pub fn get_progress(
+    book_id: String,
+    state: State<'_, AppState>,
+) -> Result<Option<LocatorDto>, AppError> {
     let connection = state.db.connect()?;
     progress::get_progress(&connection, &book_id)
 }
