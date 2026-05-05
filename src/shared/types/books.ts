@@ -17,6 +17,7 @@ export type BookDto = {
   lastOpenedAt?: string | null;
   readingStatus: ReadingStatus;
   totalProgression: number;
+  textLength: number;
 };
 
 export type BookDetailDto = BookDto & {

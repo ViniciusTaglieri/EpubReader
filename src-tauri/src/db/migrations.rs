@@ -20,7 +20,8 @@ pub fn run(connection: &Connection) -> Result<(), AppError> {
           updated_at TEXT NOT NULL,
           last_opened_at TEXT,
           reading_status TEXT NOT NULL DEFAULT 'unread',
-          total_progression REAL DEFAULT 0
+          total_progression REAL DEFAULT 0,
+          text_length INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS book_progress (
@@ -118,5 +119,24 @@ pub fn run(connection: &Connection) -> Result<(), AppError> {
         CREATE INDEX IF NOT EXISTS idx_highlights_book ON highlights(book_id);
         "#,
     )?;
+    ensure_book_text_length_column(connection)?;
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_books_text_length ON books(text_length)",
+        [],
+    )?;
+    Ok(())
+}
+
+fn ensure_book_text_length_column(connection: &Connection) -> Result<(), AppError> {
+    let mut statement = connection.prepare("PRAGMA table_info(books)")?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+    if !columns.iter().any(|name| name == "text_length") {
+        connection.execute(
+            "ALTER TABLE books ADD COLUMN text_length INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
     Ok(())
 }

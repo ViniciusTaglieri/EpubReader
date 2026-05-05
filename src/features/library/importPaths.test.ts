@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { epubPathsFromDrop, normalizePickedEpubPaths } from "./importPaths";
+import {
+  epubPathsFromDrop,
+  epubPathsFromTauriDragDrop,
+  normalizePickedEpubPaths
+} from "./importPaths";
 
 describe("importPaths", () => {
   it("normalizes a dialog selection into multiple epub paths", () => {
@@ -20,5 +24,16 @@ describe("importPaths", () => {
     ];
 
     expect(epubPathsFromDrop(files)).toEqual(["C:/books/a.epub", "C:/books/b.EPUB"]);
+  });
+
+  it("extracts epub paths from a native Tauri drop payload", () => {
+    expect(
+      epubPathsFromTauriDragDrop({
+        type: "drop",
+        paths: ["C:/books/a.epub", "C:/books/cover.jpg", "C:/books/b.EPUB"]
+      })
+    ).toEqual(["C:/books/a.epub", "C:/books/b.EPUB"]);
+
+    expect(epubPathsFromTauriDragDrop({ type: "over" })).toEqual([]);
   });
 });

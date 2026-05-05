@@ -19,6 +19,7 @@ pub struct BookDto {
     pub last_opened_at: Option<String>,
     pub reading_status: String,
     pub total_progression: f64,
+    pub text_length: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

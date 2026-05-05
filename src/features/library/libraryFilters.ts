@@ -5,7 +5,8 @@ export type LibrarySort =
   | "author"
   | "last_opened"
   | "imported_at"
-  | "progress";
+  | "progress"
+  | "size";
 
 export type LibraryFilters = {
   query: string;
@@ -41,6 +42,10 @@ function compareBooks(left: BookDto, right: BookDto, sortBy: LibrarySort): numbe
 
   if (sortBy === "progress") {
     return right.totalProgression - left.totalProgression;
+  }
+
+  if (sortBy === "size") {
+    return right.textLength - left.textLength;
   }
 
   if (sortBy === "last_opened") {

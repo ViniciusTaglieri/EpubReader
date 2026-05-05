@@ -7,8 +7,8 @@ pub fn insert_book(connection: &Connection, book: &BookDto) -> Result<(), AppErr
         INSERT INTO books (
           id, title, subtitle, author, publisher, language, description, identifier,
           file_hash, file_path, cover_path, imported_at, updated_at, last_opened_at,
-          reading_status, total_progression
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+          reading_status, total_progression, text_length
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
         "#,
         params![
             book.id,
@@ -26,7 +26,8 @@ pub fn insert_book(connection: &Connection, book: &BookDto) -> Result<(), AppErr
             book.updated_at,
             book.last_opened_at,
             book.reading_status,
-            book.total_progression
+            book.total_progression,
+            book.text_length
         ],
     )?;
     Ok(())
@@ -37,7 +38,7 @@ pub fn list_books(connection: &Connection) -> Result<Vec<BookDto>, AppError> {
         r#"
         SELECT id, title, subtitle, author, publisher, language, description, identifier,
                file_hash, file_path, cover_path, imported_at, updated_at, last_opened_at,
-               reading_status, total_progression
+               reading_status, total_progression, text_length
         FROM books
         ORDER BY COALESCE(last_opened_at, imported_at) DESC
         "#,
@@ -57,7 +58,7 @@ pub fn get_book(connection: &Connection, book_id: &str) -> Result<Option<BookDto
             r#"
             SELECT id, title, subtitle, author, publisher, language, description, identifier,
                    file_hash, file_path, cover_path, imported_at, updated_at, last_opened_at,
-                   reading_status, total_progression
+                   reading_status, total_progression, text_length
             FROM books
             WHERE id = ?1
             "#,
@@ -74,7 +75,7 @@ pub fn get_book_by_hash(connection: &Connection, hash: &str) -> Result<Option<Bo
             r#"
             SELECT id, title, subtitle, author, publisher, language, description, identifier,
                    file_hash, file_path, cover_path, imported_at, updated_at, last_opened_at,
-                   reading_status, total_progression
+                   reading_status, total_progression, text_length
             FROM books
             WHERE file_hash = ?1
             "#,
@@ -87,6 +88,18 @@ pub fn get_book_by_hash(connection: &Connection, hash: &str) -> Result<Option<Bo
 
 pub fn delete_book(connection: &Connection, book_id: &str) -> Result<(), AppError> {
     connection.execute("DELETE FROM books WHERE id = ?1", params![book_id])?;
+    Ok(())
+}
+
+pub fn update_text_length(
+    connection: &Connection,
+    book_id: &str,
+    text_length: i64,
+) -> Result<(), AppError> {
+    connection.execute(
+        "UPDATE books SET text_length = ?1 WHERE id = ?2",
+        params![text_length, book_id],
+    )?;
     Ok(())
 }
 
@@ -108,5 +121,6 @@ fn book_from_row(row: &Row<'_>) -> rusqlite::Result<BookDto> {
         last_opened_at: row.get(13)?,
         reading_status: row.get(14)?,
         total_progression: row.get(15)?,
+        text_length: row.get(16)?,
     })
 }

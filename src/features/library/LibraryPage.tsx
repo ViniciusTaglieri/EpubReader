@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
+import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
 import {
   BookMarked,
   FolderOpen,
   LayoutGrid,
   Library,
-  ListFilter,
+  List,
   Search,
   Settings,
   Star
 } from "lucide-react";
 import { BookCard } from "./BookCard";
 import { ImportButton } from "./ImportButton";
-import { epubPathsFromDrop } from "./importPaths";
+import { epubPathsFromDrop, epubPathsFromTauriDragDrop } from "./importPaths";
 import {
   filterAndSortBooks,
   type LibraryFilters,
@@ -21,6 +22,7 @@ import { commands, errorMessage } from "../../shared/tauri/commands";
 import type { BookDto } from "../../shared/types/books";
 
 type CoverMap = Record<string, string>;
+type LibraryView = "grid" | "list";
 
 type LibraryPageProps = {
   onOpenBook: (book: BookDto) => void;
@@ -37,9 +39,30 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [view, setView] = useState<LibraryView>("grid");
 
   useEffect(() => {
     void refreshBooks();
+  }, []);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        const paths = epubPathsFromTauriDragDrop(event.payload as DragDropEvent);
+        if (paths.length) {
+          void importBooks(paths);
+        }
+      })
+      .then((unsubscribe) => {
+        unlisten = unsubscribe;
+      })
+      .catch(() => undefined);
+
+    return () => {
+      unlisten?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -162,19 +185,10 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
         <aside className="border-r border-white/10 bg-black/20 p-5">
           <nav className="space-y-2">
             <SideItem icon={<Library size={22} />} label="Biblioteca" active />
-            <SideItem icon={<ListFilter size={22} />} label="Recentes" />
             <SideItem icon={<FolderOpen size={22} />} label="Colecoes" />
             <SideItem icon={<Star size={22} />} label="Favoritos" />
             <SideItem icon={<Settings size={22} />} label="Configuracoes" />
           </nav>
-
-          <section className="mt-10 rounded-lg border border-white/10 bg-white/[0.035] p-4">
-            <p className="text-sm font-semibold text-white">Armazenamento local</p>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full w-1/4 rounded-full bg-sky-400" />
-            </div>
-            <p className="mt-3 text-xs text-neutral-400">AppData / books</p>
-          </section>
         </aside>
 
         <section className="p-7">
@@ -217,14 +231,9 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
                 <option value="title">Titulo</option>
                 <option value="author">Autor</option>
                 <option value="progress">Progresso</option>
+                <option value="size">Tamanho do livro</option>
               </select>
-              <button
-                type="button"
-                title="Visualizacao em grid"
-                className="grid h-10 w-10 place-items-center rounded-md border border-white/10 bg-white/[0.06] text-amber-200"
-              >
-                <LayoutGrid size={18} />
-              </button>
+              <ViewModeToggle value={view} onChange={setView} />
             </div>
           </div>
 
@@ -238,12 +247,19 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
             {isLoading ? (
               <EmptyState title="Carregando biblioteca..." />
             ) : visibleBooks.length ? (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-5">
+              <div
+                className={
+                  view === "grid"
+                    ? "grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-5"
+                    : "space-y-3"
+                }
+              >
                 {visibleBooks.map((book) => (
                   <BookCard
                     key={book.id}
                     book={book}
                     coverUrl={covers[book.id]}
+                    view={view}
                     onOpen={onOpenBook}
                     onDelete={deleteBook}
                   />
@@ -256,6 +272,41 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
         </section>
       </div>
     </main>
+  );
+}
+
+function ViewModeToggle({
+  value,
+  onChange
+}: {
+  value: LibraryView;
+  onChange: (value: LibraryView) => void;
+}) {
+  return (
+    <div className="flex h-10 overflow-hidden rounded-md border border-white/10 bg-neutral-900">
+      <button
+        type="button"
+        title="Visualizacao em grid"
+        aria-pressed={value === "grid"}
+        onClick={() => onChange("grid")}
+        className={`grid w-10 place-items-center transition ${
+          value === "grid" ? "bg-amber-300/15 text-amber-200" : "text-neutral-300 hover:bg-white/10"
+        }`}
+      >
+        <LayoutGrid size={18} />
+      </button>
+      <button
+        type="button"
+        title="Visualizacao em lista"
+        aria-pressed={value === "list"}
+        onClick={() => onChange("list")}
+        className={`grid w-10 place-items-center border-l border-white/10 transition ${
+          value === "list" ? "bg-amber-300/15 text-amber-200" : "text-neutral-300 hover:bg-white/10"
+        }`}
+      >
+        <List size={18} />
+      </button>
+    </div>
   );
 }
 

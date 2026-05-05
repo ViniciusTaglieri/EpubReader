@@ -19,6 +19,7 @@ const book = (overrides: Partial<BookDto>): BookDto => ({
   lastOpenedAt: null,
   readingStatus: "unread",
   totalProgression: 0,
+  textLength: 0,
   ...overrides
 });
 
@@ -53,5 +54,21 @@ describe("filterAndSortBooks", () => {
     });
 
     expect(result.map((item) => item.id)).toEqual(["c", "a"]);
+  });
+
+  it("sorts books by estimated text size descending", () => {
+    const books = [
+      book({ id: "short", textLength: 10_000 }),
+      book({ id: "long", textLength: 80_000 }),
+      book({ id: "medium", textLength: 35_000 })
+    ];
+
+    const result = filterAndSortBooks(books, {
+      query: "",
+      status: "all",
+      sortBy: "size"
+    });
+
+    expect(result.map((item) => item.id)).toEqual(["long", "medium", "short"]);
   });
 });
