@@ -141,18 +141,41 @@ pub fn search_in_book(
         let text = read_zip_text(book.file_path.as_ref(), &item.href).unwrap_or_default();
         let normalized = text.to_lowercase();
         if let Some(position) = normalized.find(&needle) {
-            let start = position.saturating_sub(80);
-            let end = (position + needle.len() + 80).min(text.len());
             results.push(SearchResultDto {
                 href: item.href.clone(),
                 spine_index: index as i64,
                 progression: 0.0,
                 total_progression: index as f64 / parsed.spine.len().max(1) as f64,
-                snippet: text[start..end].replace('\n', " "),
+                snippet: snippet_around_match(&text, position, needle.len(), 80),
             });
         }
     }
     Ok(results)
+}
+
+fn snippet_around_match(
+    text: &str,
+    byte_position: usize,
+    needle_len: usize,
+    context_chars: usize,
+) -> String {
+    let match_end = byte_position.saturating_add(needle_len).min(text.len());
+    let mut boundaries = text.char_indices().map(|(index, _)| index).collect::<Vec<_>>();
+    boundaries.push(text.len());
+
+    let start_char = boundaries
+        .iter()
+        .position(|index| *index >= byte_position)
+        .unwrap_or(0)
+        .saturating_sub(context_chars);
+    let end_char = boundaries
+        .iter()
+        .position(|index| *index >= match_end)
+        .unwrap_or_else(|| boundaries.len().saturating_sub(1))
+        .saturating_add(context_chars)
+        .min(boundaries.len().saturating_sub(1));
+
+    text[boundaries[start_char]..boundaries[end_char]].replace('\n', " ")
 }
 
 fn inline_epub_images(epub_path: &std::path::Path, resource_href: &str, html: &str) -> String {
@@ -256,4 +279,31 @@ fn escape_attr(value: &str) -> String {
         .replace('"', "&quot;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::snippet_around_match;
+
+    #[test]
+    fn snippet_around_match_handles_accented_text() {
+        let text = "Inicio da historia com acao, coracao e cafe no capitulo.";
+        let needle = "coracao";
+        let position = text.to_lowercase().find(needle).expect("match");
+
+        let snippet = snippet_around_match(text, position, needle.len(), 8);
+
+        assert!(snippet.contains("coracao"));
+    }
+
+    #[test]
+    fn snippet_around_match_handles_multibyte_boundaries() {
+        let text = "Inicio da história com ação, coração e café no capítulo.";
+        let needle = "coração";
+        let position = text.to_lowercase().find(needle).expect("match");
+
+        let snippet = snippet_around_match(text, position, needle.len(), 8);
+
+        assert!(snippet.contains("coração"));
+    }
 }
