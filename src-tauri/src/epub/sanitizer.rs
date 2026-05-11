@@ -41,7 +41,7 @@ fn strip_event_handlers(input: &str) -> String {
                 while let Some(next) = chars.next() {
                     if next == '"' || next == '\'' {
                         let quote = next;
-                        while let Some(quoted) = chars.next() {
+                        for quoted in chars.by_ref() {
                             if quoted == quote {
                                 break;
                             }
