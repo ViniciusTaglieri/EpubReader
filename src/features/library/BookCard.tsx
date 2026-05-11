@@ -137,14 +137,11 @@ export function BookCard({
       </div>
 
       <div className="p-3">
-        <div className="flex items-start gap-2">
+        <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-sm font-semibold text-white">
               {book.title}
             </h3>
-            <p className="truncate text-xs text-neutral-300">
-              {book.author ?? "Autor desconhecido"}
-            </p>
           </div>
           <BookActionsMenu
             book={book}
@@ -157,8 +154,14 @@ export function BookCard({
             onToggleCollection={onToggleCollection}
           />
         </div>
-
-        <MetadataLine book={book} />
+        <div className="flex justify-between col-span-2">
+          <p className="truncate text-xs text-neutral-300">
+            {book.author ?? "Autor desconhecido"}
+          </p>
+          <p className="truncate text-xs text-neutral-400">
+            {formatTextLength(book.textLength)} Páginas
+          </p>
+        </div>
         <div className="mt-3 flex items-center gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/15">
             <div
@@ -170,9 +173,6 @@ export function BookCard({
             {progress}%
           </span>
         </div>
-        <p className="mt-2 truncate text-xs text-neutral-400">
-          {formatTextLength(book.textLength)}
-        </p>
       </div>
     </article>
   );
@@ -385,7 +385,7 @@ function BookActionsMenu({
           <div className="mt-2 border-t border-white/10 pt-2">
             <MenuButton danger onClick={() => runAction(() => onDelete(book))}>
               <Trash2 size={14} />
-              Remover do app
+              Remover da biblioteca
             </MenuButton>
           </div>
         </div>
@@ -452,7 +452,7 @@ function labelForStatus(status: BookDto["readingStatus"]) {
 function formatTextLength(textLength: number) {
   if (!textLength) return "Texto nao estimado";
   const pages = Math.max(1, Math.round(textLength / 1800));
-  return `Páginas estimadas ${pages}`;
+  return `${pages}`;
 }
 
 function formatDate(value: string) {
