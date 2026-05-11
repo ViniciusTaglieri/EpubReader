@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
 import {
   BookMarked,
@@ -46,6 +46,7 @@ type LibraryPageProps = {
 export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   const [books, setBooks] = useState<BookDto[]>([]);
   const [covers, setCovers] = useState<CoverMap>({});
+  const coversRef = useRef<CoverMap>({});
   const [filters, setFilters] = useState<LibraryFilters>(() =>
     loadSavedFilters(),
   );
@@ -113,13 +114,32 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
       void commands.getCover(book.id).then((bytes) => {
         if (!bytes.length) return;
         const blob = new Blob([new Uint8Array(bytes)], { type: "image/jpeg" });
-        setCovers((current) => ({
-          ...current,
-          [book.id]: URL.createObjectURL(blob),
-        }));
+        const url = URL.createObjectURL(blob);
+        setCovers((current) => {
+          if (current[book.id]) {
+            URL.revokeObjectURL(url);
+            return current;
+          }
+          return {
+            ...current,
+            [book.id]: url,
+          };
+        });
       });
     }
   }, [books, covers]);
+
+  useEffect(() => {
+    coversRef.current = covers;
+  }, [covers]);
+
+  useEffect(() => {
+    return () => {
+      for (const url of Object.values(coversRef.current)) {
+        URL.revokeObjectURL(url);
+      }
+    };
+  }, []);
 
   const scopedBooks = useMemo(() => {
     if (activeSection === "collections" && selectedCollectionId) {
