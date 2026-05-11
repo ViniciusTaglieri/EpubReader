@@ -49,6 +49,8 @@ pub struct SpineItemDto {
     pub href: String,
     pub media_type: String,
     pub title: Option<String>,
+    #[serde(default)]
+    pub text_length: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -46,6 +46,7 @@ export type SpineItemDto = {
   href: string;
   mediaType: string;
   title?: string | null;
+  textLength?: number;
 };
 
 export type EpubManifestDto = {

@@ -4,6 +4,7 @@ use crate::{
         parser::{normalize_href, parse_epub},
         resources::{read_zip_bytes, read_zip_text},
         sanitizer::sanitize_xhtml,
+        text::estimate_spine_text_lengths,
     },
     error::AppError,
     models::{EpubManifestDto, LocatorDto, ResourceDto, SearchResultDto},
@@ -20,7 +21,12 @@ pub fn get_book_manifest(
     let connection = state.db.connect()?;
     let book = books::get_book(&connection, &book_id)?
         .ok_or_else(|| AppError::new("book_not_found", "Livro nao encontrado"))?;
-    Ok(parse_epub(book.file_path.as_ref())?.dto(&book_id))
+    let mut parsed = parse_epub(book.file_path.as_ref())?;
+    let text_lengths = estimate_spine_text_lengths(book.file_path.as_ref(), &parsed);
+    for (item, text_length) in parsed.spine.iter_mut().zip(text_lengths) {
+        item.text_length = text_length;
+    }
+    Ok(parsed.dto(&book_id))
 }
 
 #[tauri::command]

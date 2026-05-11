@@ -26,6 +26,7 @@ import {
   bookPageStats,
   chapterPageStats,
   clampPageIndex,
+  resolveBookPageTarget,
   resolveLazyInitialPage,
   resolveInitialPage,
   shouldDeferSavedPositionRestore,
@@ -139,6 +140,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     pageCount,
     spineCount: manifest?.spine.length ?? 1,
     measuredSpinePageCounts,
+    spineTextLengths: manifest?.spine.map((item) => item.textLength ?? 0) ?? [],
   });
   const totalRemainingPages = Math.max(
     0,
@@ -449,10 +451,31 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     });
   }
 
+  function updateBookPagePosition(targetPageIndex: number) {
+    if (!manifest) {
+      updatePagePosition(targetPageIndex);
+      return;
+    }
+    const target = resolveBookPageTarget({
+      targetPageIndex,
+      activeSpineIndex: spineIndex,
+      activePageCount: pageCount,
+      spineCount: manifest.spine.length,
+      measuredSpinePageCounts,
+      spineTextLengths: manifest.spine.map((item) => item.textLength ?? 0),
+    });
+    if (target.spineIndex === spineIndex) {
+      updatePagePosition(target.pageIndex);
+      return;
+    }
+    void goToSpine(target.spineIndex, target.progression);
+  }
+
   async function goToSpine(nextIndex: number, progression = 0) {
     if (!manifest) return;
     const item = manifest.spine[nextIndex];
     if (!item) return;
+    hasUserNavigatedRef.current = true;
     pendingProgressRef.current = {
       bookId,
       href: item.href,
@@ -461,7 +484,6 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
       totalProgression: (nextIndex + progression) / manifest.spine.length,
     };
     await loadSpine(nextIndex);
-    setPageIndex(0);
     setTocOpen(false);
   }
 
@@ -686,11 +708,13 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           <input
             type="range"
             min={0}
-            max={Math.max(0, pageCount - 1)}
-            value={pageIndex}
-            onChange={(event) => updatePagePosition(Number(event.target.value))}
+            max={Math.max(0, visibleBookPages.totalPages - 1)}
+            value={Math.max(0, visibleBookPages.currentPage - 1)}
+            onChange={(event) =>
+              updateBookPagePosition(Number(event.target.value))
+            }
             className="block w-full accent-amber-300"
-            aria-label="Escolher pagina do livro"
+            aria-label="Escolher pagina do livro inteiro"
           />
         </label>
         <span className="text-right">

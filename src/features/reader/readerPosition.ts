@@ -124,44 +124,130 @@ export function bookPageStats({
   pageCount,
   spineCount,
   measuredSpinePageCounts,
+  spineTextLengths = [],
 }: {
   spineIndex: number;
   pageIndex: number;
   pageCount: number;
   spineCount: number;
   measuredSpinePageCounts: Record<number, number>;
+  spineTextLengths?: number[];
 }) {
-  const safeSpineCount = Math.max(1, spineCount);
-  const knownCounts = {
-    ...measuredSpinePageCounts,
-    [spineIndex]: pageCount,
-  };
-  const knownValues = Object.values(knownCounts).filter((value) => value > 0);
-  const average =
-    knownValues.length > 0
-      ? Math.max(
-          1,
-          Math.round(
-            knownValues.reduce((total, value) => total + value, 0) /
-              knownValues.length,
-          ),
-        )
-      : Math.max(1, pageCount);
+  const estimatedPageCounts = estimateBookPageCounts({
+    activeSpineIndex: spineIndex,
+    activePageCount: pageCount,
+    spineCount,
+    measuredSpinePageCounts,
+    spineTextLengths,
+  });
 
   let currentPageStart = 0;
-  let totalPageCount = 0;
-  for (let index = 0; index < safeSpineCount; index += 1) {
-    const count = knownCounts[index] ?? average;
-    if (index < spineIndex) {
-      currentPageStart += count;
-    }
-    totalPageCount += count;
+  for (let index = 0; index < spineIndex; index += 1) {
+    currentPageStart += estimatedPageCounts[index] ?? 1;
   }
 
   return {
     currentPage: currentPageStart + clampPageIndex(pageIndex, pageCount - 1) + 1,
-    totalPages: Math.max(1, totalPageCount),
+    totalPages: Math.max(
+      1,
+      estimatedPageCounts.reduce((total, value) => total + value, 0),
+    ),
   };
+}
+
+export function resolveBookPageTarget({
+  targetPageIndex,
+  activeSpineIndex,
+  activePageCount,
+  spineCount,
+  measuredSpinePageCounts,
+  spineTextLengths = [],
+}: {
+  targetPageIndex: number;
+  activeSpineIndex: number;
+  activePageCount: number;
+  spineCount: number;
+  measuredSpinePageCounts: Record<number, number>;
+  spineTextLengths?: number[];
+}) {
+  const estimatedPageCounts = estimateBookPageCounts({
+    activeSpineIndex,
+    activePageCount,
+    spineCount,
+    measuredSpinePageCounts,
+    spineTextLengths,
+  });
+  const totalPages = Math.max(
+    1,
+    estimatedPageCounts.reduce((total, value) => total + value, 0),
+  );
+  let remaining = clampPageIndex(targetPageIndex, totalPages - 1);
+
+  for (let index = 0; index < estimatedPageCounts.length; index += 1) {
+    const count = Math.max(1, estimatedPageCounts[index] ?? 1);
+    if (remaining < count) {
+      return {
+        spineIndex: index,
+        pageIndex: remaining,
+        progression: count <= 1 ? 0 : remaining / Math.max(1, count - 1),
+      };
+    }
+    remaining -= count;
+  }
+
+  const lastIndex = Math.max(0, estimatedPageCounts.length - 1);
+  const lastCount = Math.max(1, estimatedPageCounts[lastIndex] ?? 1);
+  return {
+    spineIndex: lastIndex,
+    pageIndex: lastCount - 1,
+    progression: 1,
+  };
+}
+
+function estimateBookPageCounts({
+  activeSpineIndex,
+  activePageCount,
+  spineCount,
+  measuredSpinePageCounts,
+  spineTextLengths,
+}: {
+  activeSpineIndex: number;
+  activePageCount: number;
+  spineCount: number;
+  measuredSpinePageCounts: Record<number, number>;
+  spineTextLengths: number[];
+}) {
+  const safeSpineCount = Math.max(1, spineCount);
+  const knownCounts = {
+    ...measuredSpinePageCounts,
+    [activeSpineIndex]: activePageCount,
+  };
+  const activeTextLength = Math.max(1, spineTextLengths[activeSpineIndex] ?? 0);
+  const activeDensity = Math.max(1, activePageCount) / activeTextLength;
+  const knownValues = Object.values(knownCounts).filter((value) => value > 0);
+  const fallbackAverage = knownValues.length
+    ? Math.max(
+        1,
+        Math.round(
+          knownValues.reduce((total, value) => total + value, 0) /
+            knownValues.length,
+        ),
+      )
+    : Math.max(1, activePageCount);
+
+  const estimated: number[] = [];
+  for (let index = 0; index < safeSpineCount; index += 1) {
+    if (knownCounts[index]) {
+      estimated[index] = Math.max(1, knownCounts[index]);
+      continue;
+    }
+    const textLength = spineTextLengths[index] ?? 0;
+    estimated[index] =
+      textLength > 0
+        ? Math.max(1, Math.round(textLength * activeDensity))
+        : fallbackAverage;
+  }
+  return estimated;
 }
 
 export function shouldSaveReadingPosition(

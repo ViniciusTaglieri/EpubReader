@@ -4,6 +4,7 @@ import {
   buildReadingLocator,
   bookPageStats,
   clampPageIndex,
+  resolveBookPageTarget,
   resolveLazyInitialPage,
   resolveInitialPage,
   shouldDeferSavedPositionRestore,
@@ -138,6 +139,32 @@ describe("readerPosition", () => {
         measuredSpinePageCounts: { 0: 8, 1: 10 },
       }),
     ).toEqual({ currentPage: 13, totalPages: 27 });
+  });
+
+  it("estimates visible book pages from spine text lengths without loading all content", () => {
+    expect(
+      bookPageStats({
+        spineIndex: 1,
+        pageIndex: 4,
+        pageCount: 10,
+        spineCount: 3,
+        measuredSpinePageCounts: {},
+        spineTextLengths: [500, 1000, 1500],
+      }),
+    ).toEqual({ currentPage: 10, totalPages: 30 });
+  });
+
+  it("maps a whole-book slider page to the target spine and local page", () => {
+    expect(
+      resolveBookPageTarget({
+        targetPageIndex: 22,
+        activeSpineIndex: 1,
+        activePageCount: 10,
+        spineCount: 3,
+        measuredSpinePageCounts: {},
+        spineTextLengths: [500, 1000, 1500],
+      }),
+    ).toEqual({ spineIndex: 2, pageIndex: 7, progression: 0.5 });
   });
 
   it("uses total progression when stale chapter metadata points near the end", () => {
