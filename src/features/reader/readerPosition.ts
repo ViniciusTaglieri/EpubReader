@@ -88,6 +88,82 @@ export function resolveInitialPage(
   );
 }
 
+export function resolveLazyInitialPage({
+  savedLocator,
+  measuredPageCount,
+  activeSpineIndex,
+  currentPageIndex,
+}: {
+  savedLocator: ReadingLocator | null;
+  measuredPageCount: number;
+  activeSpineIndex: number;
+  currentPageIndex: number;
+}) {
+  const maxPage = Math.max(0, measuredPageCount - 1);
+  if (!savedLocator || savedLocator.spineIndex !== activeSpineIndex) {
+    return clampPageIndex(currentPageIndex, maxPage);
+  }
+  if (!Number.isFinite(savedLocator.progression)) {
+    return clampPageIndex(currentPageIndex, maxPage);
+  }
+  if (
+    savedLocator.displayPageIndex !== undefined &&
+    savedLocator.displayPageCount === measuredPageCount
+  ) {
+    return clampPageIndex(savedLocator.displayPageIndex, maxPage);
+  }
+  return clampPageIndex(
+    Math.round(savedLocator.progression * maxPage),
+    maxPage,
+  );
+}
+
+export function bookPageStats({
+  spineIndex,
+  pageIndex,
+  pageCount,
+  spineCount,
+  measuredSpinePageCounts,
+}: {
+  spineIndex: number;
+  pageIndex: number;
+  pageCount: number;
+  spineCount: number;
+  measuredSpinePageCounts: Record<number, number>;
+}) {
+  const safeSpineCount = Math.max(1, spineCount);
+  const knownCounts = {
+    ...measuredSpinePageCounts,
+    [spineIndex]: pageCount,
+  };
+  const knownValues = Object.values(knownCounts).filter((value) => value > 0);
+  const average =
+    knownValues.length > 0
+      ? Math.max(
+          1,
+          Math.round(
+            knownValues.reduce((total, value) => total + value, 0) /
+              knownValues.length,
+          ),
+        )
+      : Math.max(1, pageCount);
+
+  let currentPageStart = 0;
+  let totalPageCount = 0;
+  for (let index = 0; index < safeSpineCount; index += 1) {
+    const count = knownCounts[index] ?? average;
+    if (index < spineIndex) {
+      currentPageStart += count;
+    }
+    totalPageCount += count;
+  }
+
+  return {
+    currentPage: currentPageStart + clampPageIndex(pageIndex, pageCount - 1) + 1,
+    totalPages: Math.max(1, totalPageCount),
+  };
+}
+
 export function shouldSaveReadingPosition(
   locator: ReadingLocator,
   hasUserNavigated: boolean,

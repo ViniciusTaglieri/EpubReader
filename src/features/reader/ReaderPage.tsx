@@ -23,8 +23,10 @@ import {
 } from "./readerSettings";
 import {
   buildReadingLocator,
+  bookPageStats,
   chapterPageStats,
   clampPageIndex,
+  resolveLazyInitialPage,
   resolveInitialPage,
   shouldDeferSavedPositionRestore,
   shouldSaveReadingPosition,
@@ -66,7 +68,11 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
   const [chapterPageStarts, setChapterPageStarts] = useState<number[]>([]);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageCount, setPageCount] = useState(1);
+  const [measuredSpinePageCounts, setMeasuredSpinePageCounts] = useState<
+    Record<number, number>
+  >({});
   const [isLayoutReady, setIsLayoutReady] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(
@@ -96,6 +102,8 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
         }
       } catch {
         // Defaults remain usable if persisted settings cannot be loaded.
+      } finally {
+        if (!cancelled) setSettingsLoaded(true);
       }
     }
 
@@ -125,7 +133,17 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     manifest && manifest.spine.length > 0
       ? (spineIndex + chapterStats.progression) / manifest.spine.length
       : 0;
-  const totalRemainingPages = Math.max(0, pageCount - pageIndex - 1);
+  const visibleBookPages = bookPageStats({
+    spineIndex,
+    pageIndex,
+    pageCount,
+    spineCount: manifest?.spine.length ?? 1,
+    measuredSpinePageCounts,
+  });
+  const totalRemainingPages = Math.max(
+    0,
+    visibleBookPages.totalPages - visibleBookPages.currentPage,
+  );
 
   const repaginate = useCallback(() => {
     const frame = frameRef.current;
@@ -221,6 +239,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
         height,
       );
       setPageCount(measuredPages);
+      rememberMeasuredPageCount(measuredPages);
       setPageIndex((current) =>
         resolvePageForLayout(current, measuredPages, measuredChapterStarts),
       );
@@ -244,13 +263,14 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
       pageStep,
     );
     setPageCount(measuredPages);
+    rememberMeasuredPageCount(measuredPages);
     setPageIndex((current) =>
       resolvePageForLayout(current, measuredPages, measuredChapterStarts),
     );
     setChapterPageStarts(measuredChapterStarts);
     setIsLayoutReady(true);
     scheduleRestoreRetry(measuredPages);
-  }, [pageCount, pageIndex, readerSettings]);
+  }, [pageCount, pageIndex, readerSettings, spineIndex]);
 
   useEffect(() => {
     repaginate();
@@ -481,6 +501,13 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     updatePagePosition(0);
   }
 
+  function rememberMeasuredPageCount(measuredPages: number) {
+    setMeasuredSpinePageCounts((current) => {
+      if (current[spineIndex] === measuredPages) return current;
+      return { ...current, [spineIndex]: measuredPages };
+    });
+  }
+
   function resolvePageForLayout(
     currentPageIndex: number,
     measuredPageCount: number,
@@ -492,14 +519,13 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     }
     pendingProgressRef.current = null;
     restoreRetryCountRef.current = 0;
-    if (
-      locator?.spineIndex === spineIndex &&
-      locator.displayPageCount !== measuredPageCount
-    ) {
-      return clampPageIndex(
-        Math.round(locator.progression * Math.max(0, measuredPageCount - 1)),
-        Math.max(0, measuredPageCount - 1),
-      );
+    if (locator?.spineIndex === spineIndex) {
+      return resolveLazyInitialPage({
+        savedLocator: locator,
+        measuredPageCount,
+        activeSpineIndex: spineIndex,
+        currentPageIndex,
+      });
     }
     return resolveInitialPage(
       locator,
@@ -606,15 +632,17 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           }`}
           style={{ backgroundColor: currentThemeColors.background }}
         >
-          <ReaderFrame
-            ref={frameRef}
-            manifest={manifest}
-            resource={resource}
-            message={message}
-            background={currentThemeColors.background}
-            onDismissMessage={() => setMessage(null)}
-            onLoad={repaginate}
-          />
+          {settingsLoaded ? (
+            <ReaderFrame
+              ref={frameRef}
+              manifest={manifest}
+              resource={resource}
+              message={message}
+              background={currentThemeColors.background}
+              onDismissMessage={() => setMessage(null)}
+              onLoad={repaginate}
+            />
+          ) : null}
         </div>
 
         <button
@@ -626,7 +654,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           <ChevronRight size={24} />
         </button>
 
-        {isLoading ? (
+        {isLoading || !settingsLoaded ? (
           <div className="absolute inset-0 grid place-items-center bg-black/35 backdrop-blur-sm">
             <Loader2 className="animate-spin text-amber-200" size={34} />
           </div>
@@ -647,10 +675,10 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           <span className="mb-2 flex items-center justify-center gap-2 text-xs text-neutral-400">
             <span>Página</span>
             <span className="text-neutral-200">
-              {pageIndex + 1} / {pageCount}
+              {visibleBookPages.currentPage} / {visibleBookPages.totalPages}
             </span>
             <span>
-              {totalRemainingPages == 1
+              {totalRemainingPages === 1
                 ? `resta ${totalRemainingPages} página`
                 : `restam ${totalRemainingPages} páginas`}
             </span>

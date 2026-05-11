@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { ReadingLocator, SpineItemDto } from "../../shared/types/books";
 import {
   buildReadingLocator,
+  bookPageStats,
   clampPageIndex,
+  resolveLazyInitialPage,
   resolveInitialPage,
   shouldDeferSavedPositionRestore,
   shouldSaveReadingPosition,
@@ -91,6 +93,51 @@ describe("readerPosition", () => {
 
   it("restores by total progression when the visual page count changed", () => {
     expect(resolveInitialPage(savedLocator, 60, [0, 10, 50], 0)).toBe(35);
+  });
+
+  it("restores lazy chapter position by exact display page when layout matches", () => {
+    expect(
+      resolveLazyInitialPage({
+        savedLocator,
+        measuredPageCount: 100,
+        activeSpineIndex: 1,
+        currentPageIndex: 0,
+      }),
+    ).toBe(42);
+  });
+
+  it("restores lazy chapter position by chapter progression when layout changed", () => {
+    expect(
+      resolveLazyInitialPage({
+        savedLocator,
+        measuredPageCount: 41,
+        activeSpineIndex: 1,
+        currentPageIndex: 0,
+      }),
+    ).toBe(20);
+  });
+
+  it("keeps current lazy page when saved locator belongs to another spine", () => {
+    expect(
+      resolveLazyInitialPage({
+        savedLocator,
+        measuredPageCount: 41,
+        activeSpineIndex: 2,
+        currentPageIndex: 7,
+      }),
+    ).toBe(7);
+  });
+
+  it("calculates visible book page stats from measured spine pages", () => {
+    expect(
+      bookPageStats({
+        spineIndex: 1,
+        pageIndex: 4,
+        pageCount: 10,
+        spineCount: 3,
+        measuredSpinePageCounts: { 0: 8, 1: 10 },
+      }),
+    ).toEqual({ currentPage: 13, totalPages: 27 });
   });
 
   it("uses total progression when stale chapter metadata points near the end", () => {
