@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
 import {
   BookMarked,
@@ -27,8 +27,7 @@ import type { BookDto, CollectionDto } from "../../shared/types/books";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { LibraryToolbar } from "./LibraryToolbar";
 import type { LibrarySection, LibraryView } from "./libraryTypes";
-
-type CoverMap = Record<string, string>;
+import { useBookCovers, type CoverMap } from "./useBookCovers";
 
 const LIBRARY_FILTERS_STORAGE_KEY = "epub-reader:library-filters";
 const LIBRARY_VIEW_STORAGE_KEY = "epub-reader:library-view";
@@ -39,8 +38,7 @@ type LibraryPageProps = {
 
 export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   const [books, setBooks] = useState<BookDto[]>([]);
-  const [covers, setCovers] = useState<CoverMap>({});
-  const coversRef = useRef<CoverMap>({});
+  const covers = useBookCovers(books);
   const [filters, setFilters] = useState<LibraryFilters>(() =>
     loadSavedFilters(),
   );
@@ -101,39 +99,6 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
       unlisten?.();
     };
   }, [selectedCollectionId, selectedCollection?.name]);
-
-  useEffect(() => {
-    for (const book of books) {
-      if (!book.coverPath || covers[book.id]) continue;
-      void commands.getCover(book.id).then((bytes) => {
-        if (!bytes.length) return;
-        const blob = new Blob([new Uint8Array(bytes)], { type: "image/jpeg" });
-        const url = URL.createObjectURL(blob);
-        setCovers((current) => {
-          if (current[book.id]) {
-            URL.revokeObjectURL(url);
-            return current;
-          }
-          return {
-            ...current,
-            [book.id]: url,
-          };
-        });
-      });
-    }
-  }, [books, covers]);
-
-  useEffect(() => {
-    coversRef.current = covers;
-  }, [covers]);
-
-  useEffect(() => {
-    return () => {
-      for (const url of Object.values(coversRef.current)) {
-        URL.revokeObjectURL(url);
-      }
-    };
-  }, []);
 
   const scopedBooks = useMemo(() => {
     if (activeSection === "collections" && selectedCollectionId) {
