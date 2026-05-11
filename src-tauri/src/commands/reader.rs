@@ -38,10 +38,12 @@ pub fn get_spine_resource(
         .iter()
         .find(|item| item.href == href)
         .ok_or_else(|| AppError::new("resource_not_found", "Recurso fora do spine"))?;
+    let chapter_source = read_zip_text(book.file_path.as_ref(), &href)?;
+    let chapter_body = extract_body_markup(&chapter_source);
     let contents = inline_epub_images(
         book.file_path.as_ref(),
         &href,
-        &sanitize_xhtml(&read_zip_text(book.file_path.as_ref(), &href)?),
+        &sanitize_xhtml(&chapter_body),
     );
     Ok(ResourceDto {
         href,

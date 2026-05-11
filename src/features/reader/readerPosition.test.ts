@@ -6,6 +6,7 @@ import {
   resolveInitialPage,
   shouldDeferSavedPositionRestore,
   shouldSaveReadingPosition,
+  totalProgressionForSpine,
 } from "./readerPosition";
 
 const spine: SpineItemDto[] = [
@@ -59,6 +60,33 @@ describe("readerPosition", () => {
 
   it("restores the exact visual page when the saved layout still matches", () => {
     expect(resolveInitialPage(savedLocator, 100, [0, 20, 70], 0)).toBe(42);
+  });
+
+  it("builds a locator from an explicit active spine for lazy resources", () => {
+    const locator = buildReadingLocator({
+      bookId: "book-1",
+      spine,
+      spineIndex: 1,
+      pageIndex: 4,
+      pageCount: 9,
+      chapterPageStarts: [0],
+    });
+
+    expect(locator).toMatchObject({
+      bookId: "book-1",
+      href: "OPS/chapter-2.xhtml",
+      spineIndex: 1,
+      displayPageIndex: 4,
+      displayPageCount: 9,
+    });
+    expect(locator?.progression).toBeCloseTo(0.5);
+    expect(locator?.totalProgression).toBeCloseTo((1 + 0.5) / 3);
+  });
+
+  it("calculates total progression from active spine and chapter progression", () => {
+    expect(totalProgressionForSpine(0, 4, 0)).toBe(0);
+    expect(totalProgressionForSpine(2, 4, 0.5)).toBeCloseTo(0.625);
+    expect(totalProgressionForSpine(3, 4, 1)).toBe(1);
   });
 
   it("restores by total progression when the visual page count changed", () => {

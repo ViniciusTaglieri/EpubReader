@@ -5,42 +5,38 @@ import {
   ChevronRight,
   ListTree,
   Loader2,
-  RotateCcw,
   Settings2,
 } from "lucide-react";
-import { commands, errorMessage } from "../../shared/tauri/commands";
+import { commands } from "../../shared/tauri/commands";
 import type {
-  EpubManifestDto,
   ReadingLocator,
   ReadingSettingsDto,
-  ResourceDto,
   TocItemDto,
 } from "../../shared/types/books";
-import { buildReaderDocument } from "./readerDocument";
 import {
   DEFAULT_READER_SETTINGS,
   resetReaderSettings,
   readerSettingsFromDto,
   themeColors,
   type ReaderSettings,
-  type ReaderTheme,
   type ReadingMode,
-  type SpreadMode,
-  type TextAlignMode,
 } from "./readerSettings";
-import {
-  AppMessage,
-  type AppMessageData,
-} from "../../shared/components/AppMessage";
 import {
   buildReadingLocator,
   chapterPageStats,
   clampPageIndex,
-  currentSpineIndex,
   resolveInitialPage,
   shouldDeferSavedPositionRestore,
   shouldSaveReadingPosition,
 } from "./readerPosition";
+import { ReaderFrame } from "./ReaderFrame";
+import { ReadingSettingsPopover } from "./ReadingSettingsPopover";
+import {
+  findTocItemByHref,
+  normalizeHrefForMatch,
+  TocPopover,
+} from "./TocPopover";
+import { useReaderBook } from "./useReaderBook";
 
 type ReaderPageProps = {
   bookId: string;
@@ -57,13 +53,19 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
   const restoreRetryCountRef = useRef(0);
   const hasUserNavigatedRef = useRef(false);
   const pageIndexFromScrollRef = useRef(false);
-  const [manifest, setManifest] = useState<EpubManifestDto | null>(null);
-  const [resource, setResource] = useState<ResourceDto | null>(null);
+  const {
+    manifest,
+    resource,
+    savedLocator,
+    spineIndex,
+    isLoading,
+    message,
+    setMessage,
+    goToSpine: loadSpine,
+  } = useReaderBook(bookId);
   const [chapterPageStarts, setChapterPageStarts] = useState<number[]>([]);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageCount, setPageCount] = useState(1);
-  const [message, setMessage] = useState<AppMessageData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
@@ -72,56 +74,37 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
   );
 
   useEffect(() => {
+    pendingProgressRef.current = savedLocator;
+    latestLocatorRef.current = savedLocator;
+    restoreRetryCountRef.current = 0;
+    hasUserNavigatedRef.current = false;
+    setPageIndex(0);
+    setPageCount(1);
+    setChapterPageStarts([0]);
+    setIsLayoutReady(false);
+  }, [savedLocator]);
+
+  useEffect(() => {
     let cancelled = false;
 
-    async function loadBook() {
-      setIsLoading(true);
-      setIsLayoutReady(false);
-      latestLocatorRef.current = null;
-      pendingProgressRef.current = null;
-      restoreRetryCountRef.current = 0;
-      hasUserNavigatedRef.current = false;
+    async function loadSettings() {
       try {
-        const [loadedManifest, progress] = await Promise.all([
-          commands.getBookManifest(bookId),
-          commands.getProgress(bookId),
-        ]);
+        const savedSettings = await commands.getReadingSettings("default");
         if (cancelled) return;
-        const initialProgress = progress ?? null;
-        pendingProgressRef.current = initialProgress;
-        latestLocatorRef.current = initialProgress;
-        const [loadedRendition, savedSettings] = await Promise.all([
-          commands.getBookRendition(bookId),
-          commands.getReadingSettings("default"),
-        ]);
-        if (cancelled) return;
-        setManifest(loadedManifest);
-        setResource(loadedRendition);
         if (savedSettings) {
           setReaderSettings(readerSettingsFromDto(savedSettings));
         }
-        setPageIndex(0);
-        setMessage(null);
-      } catch (error) {
-        if (!cancelled) {
-          setMessage({ text: errorMessage(error), variant: "error" });
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
+      } catch {
+        // Defaults remain usable if persisted settings cannot be loaded.
       }
     }
 
-    void loadBook();
+    void loadSettings();
     return () => {
       cancelled = true;
     };
-  }, [bookId]);
+  }, []);
 
-  const spineIndex = currentSpineIndex(
-    pageIndex,
-    chapterPageStarts,
-    manifest?.spine.length ?? 0,
-  );
   const currentChapter = useMemo(() => {
     if (!manifest) return "";
     const href = manifest.spine[spineIndex]?.href;
@@ -132,14 +115,16 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
       `Capitulo ${spineIndex + 1}`
     );
   }, [manifest, spineIndex]);
-  const totalProgression =
-    pageCount <= 1 ? 0 : pageIndex / Math.max(1, pageCount - 1);
   const chapterStats = chapterPageStats(
     pageIndex,
     pageCount,
     chapterPageStarts,
     spineIndex,
   );
+  const totalProgression =
+    manifest && manifest.spine.length > 0
+      ? (spineIndex + chapterStats.progression) / manifest.spine.length
+      : 0;
   const totalRemainingPages = Math.max(0, pageCount - pageIndex - 1);
 
   const repaginate = useCallback(() => {
@@ -367,6 +352,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     const locator = buildReadingLocator({
       bookId,
       spine: manifest.spine,
+      spineIndex,
       pageIndex,
       pageCount,
       chapterPageStarts,
@@ -385,6 +371,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     pageCount,
     pageIndex,
     resource,
+    spineIndex,
   ]);
 
   useEffect(() => {
@@ -414,6 +401,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     return buildReadingLocator({
       bookId,
       spine: manifest.spine,
+      spineIndex,
       pageIndex: targetPageIndex,
       pageCount,
       chapterPageStarts,
@@ -441,11 +429,19 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     });
   }
 
-  function goToSpine(nextIndex: number) {
+  async function goToSpine(nextIndex: number, progression = 0) {
     if (!manifest) return;
     const item = manifest.spine[nextIndex];
     if (!item) return;
-    updatePagePosition(chapterPageStarts[nextIndex] ?? 0);
+    pendingProgressRef.current = {
+      bookId,
+      href: item.href,
+      spineIndex: nextIndex,
+      progression,
+      totalProgression: (nextIndex + progression) / manifest.spine.length,
+    };
+    await loadSpine(nextIndex);
+    setPageIndex(0);
     setTocOpen(false);
   }
 
@@ -456,15 +452,23 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
       (spineItem) => normalizeHrefForMatch(spineItem.href) === href,
     );
     if (nextIndex >= 0) {
-      goToSpine(nextIndex);
+      void goToSpine(nextIndex);
     }
   }
 
   function previousPage() {
+    if (pageIndex <= 0 && spineIndex > 0) {
+      void goToSpine(spineIndex - 1, 1);
+      return;
+    }
     updatePagePosition((current) => current - 1);
   }
 
   function nextPage() {
+    if (pageIndex >= pageCount - 1 && manifest && spineIndex < manifest.spine.length - 1) {
+      void goToSpine(spineIndex + 1);
+      return;
+    }
     updatePagePosition((current) => current + 1);
   }
 
@@ -488,6 +492,15 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     }
     pendingProgressRef.current = null;
     restoreRetryCountRef.current = 0;
+    if (
+      locator?.spineIndex === spineIndex &&
+      locator.displayPageCount !== measuredPageCount
+    ) {
+      return clampPageIndex(
+        Math.round(locator.progression * Math.max(0, measuredPageCount - 1)),
+        Math.max(0, measuredPageCount - 1),
+      );
+    }
     return resolveInitialPage(
       locator,
       measuredPageCount,
@@ -562,6 +575,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           settings={readerSettings}
           onChange={updateReaderSettings}
           onReset={resetRenditionSettings}
+          onClose={() => setSettingsOpen(false)}
         />
       ) : null}
       {tocOpen && manifest ? (
@@ -569,6 +583,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           toc={manifest.toc}
           currentHref={manifest.spine[spineIndex]?.href}
           onNavigate={goToTocItem}
+          onClose={() => setTocOpen(false)}
         />
       ) : null}
 
@@ -591,25 +606,15 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           }`}
           style={{ backgroundColor: currentThemeColors.background }}
         >
-          {message ? (
-            <div className="grid h-full place-items-center p-8">
-              <AppMessage
-                message={message}
-                onClose={() => setMessage(null)}
-                className="max-w-lg"
-              />
-            </div>
-          ) : (
-            <iframe
-              ref={frameRef}
-              title={manifest?.title ?? "Leitor EPUB"}
-              sandbox="allow-same-origin"
-              srcDoc={buildReaderDocument(resource?.contents ?? "")}
-              onLoad={repaginate}
-              className="block h-full w-full overflow-hidden border-0"
-              style={{ backgroundColor: currentThemeColors.background }}
-            />
-          )}
+          <ReaderFrame
+            ref={frameRef}
+            manifest={manifest}
+            resource={resource}
+            message={message}
+            background={currentThemeColors.background}
+            onDismissMessage={() => setMessage(null)}
+            onLoad={repaginate}
+          />
         </div>
 
         <button
@@ -666,334 +671,6 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
       </footer>
     </main>
   );
-}
-
-function ReadingSettingsPopover({
-  settings,
-  onChange,
-  onReset,
-}: {
-  settings: ReaderSettings;
-  onChange: (settings: Partial<ReaderSettings>) => void;
-  onReset: () => void;
-}) {
-  return (
-    <aside className="absolute right-5 top-20 z-30 max-h-[calc(100vh-6rem)] w-80 overflow-y-auto rounded-lg border border-white/10 bg-[#1f1d1a] p-4 text-sm text-neutral-100 shadow-2xl shadow-black/40">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-semibold">Configurações de Exibição</h2>
-        <button
-          type="button"
-          onClick={onReset}
-          className="grid h-8 w-8 place-items-center rounded-md border border-white/10 text-neutral-300 transition hover:bg-white/10 hover:text-white"
-          title="Redefinir ajustes de leitura"
-          aria-label="Redefinir ajustes de leitura"
-        >
-          <RotateCcw size={15} />
-        </button>
-      </div>
-
-      <label className="block">
-        <span className="text-xs text-neutral-400">Fonte</span>
-        <select
-          value={settings.fontFamily}
-          onChange={(event) => onChange({ fontFamily: event.target.value })}
-          className="mt-1 h-10 w-full rounded-md border border-white/10 bg-neutral-900 px-3 outline-none"
-        >
-          <option value="Georgia, Times New Roman, serif">Georgia</option>
-          <option value="Lora, Georgia, serif">Lora</option>
-          <option value="Arial, Helvetica, sans-serif">Arial</option>
-          <option value="Verdana, Geneva, sans-serif">Verdana</option>
-          <option value="OpenDyslexic, Arial, sans-serif">OpenDyslexic</option>
-        </select>
-      </label>
-
-      <SettingSlider
-        label="Tamanho da fonte"
-        value={settings.fontSize}
-        min={14}
-        max={32}
-        step={1}
-        suffix="px"
-        onChange={(fontSize) => onChange({ fontSize })}
-      />
-      <SettingSlider
-        label="Margem"
-        value={settings.margin}
-        min={24}
-        max={140}
-        step={4}
-        suffix="px"
-        onChange={(margin) => onChange({ margin })}
-      />
-      <SettingSlider
-        label="Espacamento entre linhas"
-        value={settings.lineHeight}
-        min={1.2}
-        max={2.2}
-        step={0.05}
-        onChange={(lineHeight) => onChange({ lineHeight })}
-      />
-      <SettingSlider
-        label="Espacamento de paragrafo"
-        value={settings.paragraphSpacing}
-        min={0.4}
-        max={2}
-        step={0.05}
-        suffix="em"
-        onChange={(paragraphSpacing) => onChange({ paragraphSpacing })}
-      />
-
-      <ThemeButtons
-        value={settings.theme}
-        onChange={(theme) => onChange({ theme })}
-      />
-      <SegmentedButtons<TextAlignMode>
-        label="Alinhamento"
-        value={settings.textAlign}
-        options={[
-          ["left", "Esquerda"],
-          ["justify", "Justificado"],
-        ]}
-        onChange={(textAlign) => onChange({ textAlign })}
-      />
-      <SegmentedButtons<ReadingMode>
-        label="Modo de leitura"
-        value={settings.readingMode}
-        options={[
-          ["paginated", "Paginado"],
-          ["scroll", "Rolagem continua"],
-        ]}
-        onChange={(readingMode) => onChange({ readingMode })}
-      />
-      <SegmentedButtons<SpreadMode>
-        label="Modo"
-        value={settings.spreadMode}
-        options={[
-          ["single", "Uma pagina"],
-          ["spread", "Duas paginas"],
-        ]}
-        disabled={settings.readingMode === "scroll"}
-        onChange={(spreadMode) => onChange({ spreadMode })}
-      />
-    </aside>
-  );
-}
-
-function TocPopover({
-  toc,
-  currentHref,
-  onNavigate,
-}: {
-  toc: TocItemDto[];
-  currentHref?: string;
-  onNavigate: (item: TocItemDto) => void;
-}) {
-  const items = flattenToc(toc);
-
-  return (
-    <aside className="absolute right-5 top-20 z-30 max-h-[calc(100vh-7rem)] w-80 overflow-y-auto rounded-lg border border-white/10 bg-[#1f1d1a] p-4 text-sm text-neutral-100 shadow-2xl shadow-black/40">
-      <div className="mb-4">
-        <h2 className="font-semibold">Sumario</h2>
-        <p className="mt-1 text-xs text-neutral-500">
-          Navegue pelo TOC do EPUB sem sair do fluxo reflowable.
-        </p>
-      </div>
-      {items.length > 0 ? (
-        <div className="space-y-1">
-          {items.map(({ item, depth }) => {
-            const isCurrent =
-              normalizeHrefForMatch(item.href) ===
-              normalizeHrefForMatch(currentHref ?? "");
-
-            return (
-              <button
-                key={`${item.id}-${item.href}`}
-                type="button"
-                onClick={() => onNavigate(item)}
-                className={`block w-full rounded-md px-3 py-2 text-left text-xs transition ${
-                  isCurrent
-                    ? "bg-amber-300/15 text-amber-100"
-                    : "text-neutral-300 hover:bg-white/[0.07] hover:text-white"
-                }`}
-                style={{ paddingLeft: `${12 + depth * 14}px` }}
-              >
-                <span className="line-clamp-2">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="rounded-md border border-white/10 bg-white/[0.03] p-3 text-xs text-neutral-400">
-          Este EPUB nao informou um sumario navegavel.
-        </p>
-      )}
-    </aside>
-  );
-}
-
-function ThemeButtons({
-  value,
-  onChange,
-}: {
-  value: ReaderTheme;
-  onChange: (theme: ReaderTheme) => void;
-}) {
-  const options: Array<[ReaderTheme, string]> = [
-    ["light", "Claro"],
-    ["dark", "Escuro"],
-    ["sepia", "Sepia"],
-    ["oled", "OLED"],
-  ];
-
-  return (
-    <div className="mt-4">
-      <span className="text-xs text-neutral-400">Tema</span>
-      <div className="mt-2 grid grid-cols-4 gap-2">
-        {options.map(([theme, label]) => {
-          const colors = themeColors(theme);
-          const isSelected = value === theme;
-
-          return (
-            <button
-              key={theme}
-              type="button"
-              onClick={() => onChange(theme)}
-              aria-pressed={isSelected}
-              className={`rounded-md border p-2 text-center transition ${
-                isSelected
-                  ? "border-amber-300 bg-amber-300/10 text-amber-100"
-                  : "border-white/10 bg-white/[0.03] text-neutral-300 hover:bg-white/[0.07]"
-              }`}
-              title={label}
-            >
-              <span
-                className="mx-auto block h-7 w-7 rounded-full border border-white/20"
-                style={{
-                  backgroundColor: colors.background,
-                  boxShadow: `inset 0 0 0 8px ${colors.ink}`,
-                }}
-              />
-              <span className="mt-1 block text-[11px]">{label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function SegmentedButtons<TValue extends string>({
-  label,
-  value,
-  options,
-  disabled = false,
-  onChange,
-}: {
-  label: string;
-  value: TValue;
-  options: Array<[TValue, string]>;
-  disabled?: boolean;
-  onChange: (value: TValue) => void;
-}) {
-  return (
-    <div className="mt-4">
-      <span className="text-xs text-neutral-400">{label}</span>
-      <div
-        className={`mt-2 grid gap-2 ${options.length > 2 ? "grid-cols-3" : "grid-cols-2"}`}
-      >
-        {options.map(([optionValue, optionLabel]) => {
-          const isSelected = value === optionValue;
-          return (
-            <button
-              key={optionValue}
-              type="button"
-              disabled={disabled}
-              onClick={() => onChange(optionValue)}
-              aria-pressed={isSelected}
-              className={`min-h-10 rounded-md border px-3 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-45 ${
-                isSelected
-                  ? "border-amber-300 bg-amber-300/15 text-amber-100"
-                  : "border-white/10 bg-white/[0.03] text-neutral-300 hover:bg-white/[0.07]"
-              }`}
-            >
-              {optionLabel}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function SettingSlider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  suffix = "",
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  suffix?: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="mt-4 block">
-      <span className="flex items-center justify-between text-xs text-neutral-400">
-        <span>{label}</span>
-        <span className="text-neutral-200">
-          {Number.isInteger(value) ? value : value.toFixed(2)}
-          {suffix}
-        </span>
-      </span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="mt-2 w-full accent-amber-300"
-      />
-    </label>
-  );
-}
-
-type TocListItem = {
-  item: TocItemDto;
-  depth: number;
-};
-
-function normalizeHrefForMatch(href: string) {
-  return href.split("#")[0].replace(/^\.\//, "");
-}
-
-function findTocItemByHref(
-  items: TocItemDto[],
-  href: string | undefined,
-): TocItemDto | undefined {
-  if (!href) return undefined;
-  const normalized = normalizeHrefForMatch(href);
-  for (const item of items) {
-    if (normalizeHrefForMatch(item.href) === normalized) {
-      return item;
-    }
-    const child = findTocItemByHref(item.children, href);
-    if (child) return child;
-  }
-  return undefined;
-}
-
-function flattenToc(items: TocItemDto[], depth = 0): TocListItem[] {
-  return items.flatMap((item) => [
-    { item, depth },
-    ...flattenToc(item.children, depth + 1),
-  ]);
 }
 
 function measureChapterStarts(

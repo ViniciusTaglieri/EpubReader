@@ -3,6 +3,7 @@ import type { ReadingLocator, SpineItemDto } from "../../shared/types/books";
 type BuildReadingLocatorInput = {
   bookId: string;
   spine: SpineItemDto[];
+  spineIndex?: number;
   pageIndex: number;
   pageCount: number;
   chapterPageStarts: number[];
@@ -11,11 +12,13 @@ type BuildReadingLocatorInput = {
 export function buildReadingLocator({
   bookId,
   spine,
+  spineIndex: explicitSpineIndex,
   pageIndex,
   pageCount,
   chapterPageStarts,
 }: BuildReadingLocatorInput): ReadingLocator | null {
-  const spineIndex = currentSpineIndex(pageIndex, chapterPageStarts, spine.length);
+  const spineIndex =
+    explicitSpineIndex ?? currentSpineIndex(pageIndex, chapterPageStarts, spine.length);
   const spineItem = spine[spineIndex];
   if (!spineItem) return null;
 
@@ -31,10 +34,30 @@ export function buildReadingLocator({
     href: spineItem.href,
     spineIndex,
     progression: chapterStats.progression,
-    totalProgression: pageCount <= 1 ? 0 : pageIndex / Math.max(1, pageCount - 1),
+    totalProgression:
+      explicitSpineIndex === undefined
+        ? pageCount <= 1
+          ? 0
+          : pageIndex / Math.max(1, pageCount - 1)
+        : totalProgressionForSpine(
+            spineIndex,
+            spine.length,
+            chapterStats.progression,
+          ),
     displayPageIndex: pageIndex,
     displayPageCount: pageCount,
   };
+}
+
+export function totalProgressionForSpine(
+  spineIndex: number,
+  spineCount: number,
+  progression: number,
+) {
+  if (spineCount <= 1) return clampUnit(progression);
+  const safeSpineIndex = Math.min(spineCount - 1, Math.max(0, spineIndex));
+  const safeProgression = clampUnit(progression);
+  return (safeSpineIndex + safeProgression) / spineCount;
 }
 
 export function resolveInitialPage(
@@ -90,6 +113,11 @@ export function shouldDeferSavedPositionRestore(
 export function clampPageIndex(pageIndex: number, maxPage: number) {
   if (!Number.isFinite(pageIndex)) return 0;
   return Math.min(maxPage, Math.max(0, pageIndex));
+}
+
+function clampUnit(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
 }
 
 export function currentSpineIndex(
