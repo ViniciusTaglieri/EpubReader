@@ -25,6 +25,11 @@ import {
   type LibrarySort,
 } from "./libraryFilters";
 import { commands, errorMessage } from "../../shared/tauri/commands";
+import {
+  AppMessage,
+  type AppMessageData,
+  type AppMessageVariant,
+} from "../../shared/components/AppMessage";
 import type { BookDto, CollectionDto } from "../../shared/types/books";
 
 type CoverMap = Record<string, string>;
@@ -46,7 +51,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<AppMessageData | null>(null);
   const [view, setView] = useState<LibraryView>(() => loadSavedView());
   const [collections, setCollections] = useState<CollectionDto[]>([]);
   const [activeSection, setActiveSection] = useState<LibrarySection>("library");
@@ -137,13 +142,17 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
     await Promise.all([refreshBooks(), refreshCollections()]);
   }
 
+  function showMessage(text: string, variant: AppMessageVariant) {
+    setMessage({ text, variant });
+  }
+
   async function refreshBooks() {
     setIsLoading(true);
     try {
       setBooks(await commands.listBooks());
       setMessage(null);
     } catch (error) {
-      setMessage(errorMessage(error));
+      showMessage(errorMessage(error), "error");
     } finally {
       setIsLoading(false);
     }
@@ -153,14 +162,14 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
     try {
       setCollections(await commands.listCollections());
     } catch (error) {
-      setMessage(errorMessage(error));
+      showMessage(errorMessage(error), "error");
     }
   }
 
   async function importBooks(paths: string[]) {
     const uniquePaths = Array.from(new Set(paths));
     if (!uniquePaths.length) {
-      setMessage("Selecione ou arraste arquivos EPUB validos.");
+      showMessage("Selecione ou arraste arquivos EPUB validos.", "warning");
       return;
     }
 
@@ -185,14 +194,16 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
       }
       await refreshLibrary();
       if (failures.length) {
-        setMessage(
+        showMessage(
           `${importedCount} EPUB(s) importado(s). Falhas: ${failures.join(" | ")}`,
+          importedCount > 0 ? "warning" : "error",
         );
       } else {
-        setMessage(
+        showMessage(
           selectedCollection
             ? `${importedCount} EPUB(s) importado(s) para "${selectedCollection.name}".`
             : `${importedCount} EPUB(s) importado(s) para a biblioteca.`,
+          "success",
         );
       }
     } finally {
@@ -210,7 +221,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
         ),
       );
     } catch (error) {
-      setMessage(errorMessage(error));
+      showMessage(errorMessage(error), "error");
     }
   }
 
@@ -231,7 +242,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
       }
       await refreshCollections();
     } catch (error) {
-      setMessage(errorMessage(error));
+      showMessage(errorMessage(error), "error");
     }
   }
 
@@ -248,7 +259,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   async function saveCollection() {
     const name = collectionName.trim();
     if (!name) {
-      setMessage("Informe um nome para a colecao.");
+      showMessage("Informe um nome para a colecao.", "warning");
       return;
     }
     try {
@@ -261,7 +272,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
         await refreshCollections();
         setSelectedCollectionId(collection.id);
         setCollectionDialogOpen(false);
-        setMessage(`Colecao "${collection.name}" atualizada.`);
+        showMessage(`Colecao "${collection.name}" atualizada.`, "success");
         return;
       }
 
@@ -273,9 +284,9 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
       setActiveSection("collections");
       setSelectedCollectionId(collection.id);
       setCollectionDialogOpen(false);
-      setMessage(`Colecao "${collection.name}" criada.`);
+      showMessage(`Colecao "${collection.name}" criada.`, "success");
     } catch (error) {
-      setMessage(errorMessage(error));
+      showMessage(errorMessage(error), "error");
     }
   }
 
@@ -293,25 +304,28 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
         setSelectedCollectionId(null);
       }
       setActiveSection("collections");
-      setMessage(`Colecao "${collection.name}" excluida.`);
+      showMessage(`Colecao "${collection.name}" excluida.`, "success");
     } catch (error) {
-      setMessage(errorMessage(error));
+      showMessage(errorMessage(error), "error");
     }
   }
 
   async function deleteBook(book: BookDto) {
     if (
       !window.confirm(
-        `Remover "${book.title}" do app? O arquivo local sera preservado.`,
+        `Remover "${book.title}" do app e apagar todos os arquivos salvos deste livro?`,
       )
     )
       return;
     try {
       await commands.deleteBook(book.id);
       setBooks((current) => current.filter((item) => item.id !== book.id));
-      setMessage(`"${book.title}" removido.`);
+      showMessage(
+        `O livro: "${book.title}" foi removido da biblioteca.`,
+        "success",
+      );
     } catch (error) {
-      setMessage(errorMessage(error));
+      showMessage(errorMessage(error), "error");
     }
   }
 
@@ -323,7 +337,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
     if (paths.length) {
       void importBooks(paths);
     } else {
-      setMessage("Arraste um ou mais arquivos EPUB validos.");
+      showMessage("Arraste um ou mais arquivos EPUB validos.", "warning");
     }
   }
 
@@ -363,41 +377,26 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
               setSelectedCollectionId(null);
             }}
           />
-          <div className="group flex items-center gap-1">
-            <SideItem
-              icon={<FolderOpen size={22} />}
-              label="Colecoes"
-              collapsed={sidebarCollapsed}
-              active={activeSection === "collections" && !selectedCollectionId}
-              onClick={() => {
-                setActiveSection("collections");
-                setSelectedCollectionId(null);
-              }}
-            />
-            {sidebarCollapsed ? null : (
-              <button
-                type="button"
-                onClick={() => setCollectionsExpanded((current) => !current)}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-md text-neutral-400 opacity-0 transition hover:bg-white/[0.06] hover:text-amber-100 group-hover:opacity-100 focus:opacity-100"
-                title={
-                  collectionsExpanded
-                    ? "Recolher colecoes"
-                    : "Expandir colecoes"
-                }
-                aria-label={
-                  collectionsExpanded
-                    ? "Recolher colecoes"
-                    : "Expandir colecoes"
-                }
-                aria-expanded={collectionsExpanded}
-              >
+          <SideItem
+            icon={<FolderOpen size={22} />}
+            label="Colecoes"
+            collapsed={sidebarCollapsed}
+            active={activeSection === "collections" && !selectedCollectionId}
+            trailingIcon={
+              sidebarCollapsed ? null : (
                 <ChevronDown
                   size={16}
                   className={`transition ${collectionsExpanded ? "" : "-rotate-90"}`}
                 />
-              </button>
-            )}
-          </div>
+              )
+            }
+            ariaExpanded={collectionsExpanded}
+            onClick={() => {
+              setActiveSection("collections");
+              setSelectedCollectionId(null);
+              setCollectionsExpanded((current) => !current);
+            }}
+          />
           {!sidebarCollapsed && collectionsExpanded
             ? collections.map((collection) => (
                 <SideItem
@@ -429,7 +428,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
 
       <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="shrink-0 border-b border-white/10 bg-[#12110f]/95 p-6 backdrop-blur">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-2xl font-bold">
                 {sectionTitle(activeSection, selectedCollection)}
@@ -474,8 +473,21 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
                     }))
                   }
                   placeholder="Buscar livro ou autor"
-                  className="h-11 w-full rounded-lg border border-white/10 bg-white/[0.06] pl-11 pr-4 text-sm outline-none ring-amber-300/30 transition placeholder:text-neutral-400 focus:ring-4"
+                  className="h-11 w-full rounded-lg border border-white/10 bg-white/[0.06] pl-11 pr-11 text-sm outline-none ring-amber-300/30 transition placeholder:text-neutral-400 focus:ring-4"
                 />
+                {filters.query ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilters((current) => ({ ...current, query: "" }))
+                    }
+                    className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md text-neutral-400 transition hover:bg-white/10 hover:text-white"
+                    title="Limpar busca"
+                    aria-label="Limpar busca"
+                  >
+                    <X size={16} />
+                  </button>
+                ) : null}
               </label>
               <select
                 value={
@@ -529,9 +541,11 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
           </div>
 
           {message ? (
-            <div className="mt-5 rounded-md border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
-              {message}
-            </div>
+            <AppMessage
+              message={message}
+              onClose={() => setMessage(null)}
+              className="mt-5"
+            />
           ) : null}
         </div>
 
@@ -552,7 +566,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
             <div
               className={
                 view === "grid"
-                  ? "grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-5"
+                  ? "grid grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] gap-5"
                   : "space-y-3"
               }
             >
@@ -631,7 +645,7 @@ function CollectionsOverview({
   onDelete: (collection: CollectionDto) => void;
 }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-5">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] gap-5">
       <button
         type="button"
         onClick={onCreate}
@@ -967,16 +981,20 @@ function ViewModeToggle({
 function SideItem({
   icon,
   label,
+  trailingIcon,
   active = false,
   inset = false,
   collapsed = false,
+  ariaExpanded,
   onClick,
 }: {
   icon: ReactNode;
   label: string;
+  trailingIcon?: ReactNode;
   active?: boolean;
   inset?: boolean;
   collapsed?: boolean;
+  ariaExpanded?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -984,14 +1002,24 @@ function SideItem({
       type="button"
       title={collapsed ? label : undefined}
       onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm transition ${
+      aria-expanded={ariaExpanded}
+      className={`group flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm transition ${
         active
           ? "bg-white/10 font-semibold text-amber-200"
           : "text-neutral-300 hover:bg-white/[0.06] hover:text-white"
       } ${inset ? "py-2 pl-8 text-xs" : ""} ${collapsed ? "justify-center px-0" : ""}`}
     >
       {icon}
-      {collapsed ? null : label}
+      {collapsed ? null : (
+        <>
+          <span className="min-w-0 flex-1 truncate">{label}</span>
+          {trailingIcon ? (
+            <span className="grid h-6 w-6 shrink-0 place-items-center text-neutral-400 opacity-0 transition group-hover:text-amber-100 group-hover:opacity-100 group-focus-visible:text-amber-100 group-focus-visible:opacity-100">
+              {trailingIcon}
+            </span>
+          ) : null}
+        </>
+      )}
     </button>
   );
 }
