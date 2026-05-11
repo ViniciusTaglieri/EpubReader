@@ -3,6 +3,7 @@ use crate::{
     epub::{parser::parse_epub, text::estimate_epub_text_length},
     error::AppError,
     models::{BookDetailDto, BookDto},
+    storage::files::remove_book_storage,
     AppState,
 };
 use tauri::State;
@@ -40,6 +41,9 @@ pub fn get_book(book_id: String, state: State<'_, AppState>) -> Result<BookDetai
 #[tauri::command]
 pub fn delete_book(book_id: String, state: State<'_, AppState>) -> Result<(), AppError> {
     let connection = state.db.connect()?;
+    books::get_book(&connection, &book_id)?
+        .ok_or_else(|| AppError::new("book_not_found", "Livro nao encontrado"))?;
+    remove_book_storage(&state.paths.books_dir(), &book_id)?;
     books::delete_book(&connection, &book_id)?;
     Ok(())
 }
