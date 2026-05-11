@@ -27,6 +27,19 @@ import {
   type SpreadMode,
   type TextAlignMode,
 } from "./readerSettings";
+import {
+  AppMessage,
+  type AppMessageData,
+} from "../../shared/components/AppMessage";
+import {
+  buildReadingLocator,
+  chapterPageStats,
+  clampPageIndex,
+  currentSpineIndex,
+  resolveInitialPage,
+  shouldDeferSavedPositionRestore,
+  shouldSaveReadingPosition,
+} from "./readerPosition";
 
 type ReaderPageProps = {
   bookId: string;
@@ -34,19 +47,21 @@ type ReaderPageProps = {
 };
 
 const COLUMN_GAP = 56;
-const PROGRESS_STORAGE_PREFIX = "reading-system:progress:";
+const RESTORE_LAYOUT_RETRY_LIMIT = 8;
 
 export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const pendingProgressRef = useRef<ReadingLocator | null>(null);
   const latestLocatorRef = useRef<ReadingLocator | null>(null);
+  const restoreRetryCountRef = useRef(0);
+  const hasUserNavigatedRef = useRef(false);
   const pageIndexFromScrollRef = useRef(false);
   const [manifest, setManifest] = useState<EpubManifestDto | null>(null);
   const [resource, setResource] = useState<ResourceDto | null>(null);
   const [chapterPageStarts, setChapterPageStarts] = useState<number[]>([]);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageCount, setPageCount] = useState(1);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<AppMessageData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -62,23 +77,28 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
       setIsLoading(true);
       setIsLayoutReady(false);
       latestLocatorRef.current = null;
+      pendingProgressRef.current = null;
+      restoreRetryCountRef.current = 0;
+      hasUserNavigatedRef.current = false;
       try {
-        const storedProgress = readStoredProgress(bookId);
         const [loadedManifest, progress] = await Promise.all([
           commands.getBookManifest(bookId),
           commands.getProgress(bookId),
         ]);
         if (cancelled) return;
-        const initialProgress = storedProgress ?? progress ?? null;
+        const initialProgress = progress ?? null;
         pendingProgressRef.current = initialProgress;
+        latestLocatorRef.current = initialProgress;
         const loadedRendition = await commands.getBookRendition(bookId);
         if (cancelled) return;
         setManifest(loadedManifest);
         setResource(loadedRendition);
-        setPageIndex(initialProgress?.displayPageIndex ?? 0);
+        setPageIndex(0);
         setMessage(null);
       } catch (error) {
-        if (!cancelled) setMessage(errorMessage(error));
+        if (!cancelled) {
+          setMessage({ text: errorMessage(error), variant: "error" });
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -210,15 +230,11 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
       );
       setPageCount(measuredPages);
       setPageIndex((current) =>
-        resolvePageAfterReflow(
-          current,
-          measuredPages,
-          pendingProgressRef,
-          measuredChapterStarts,
-        ),
+        resolvePageForLayout(current, measuredPages, measuredChapterStarts),
       );
       setChapterPageStarts(measuredChapterStarts);
       setIsLayoutReady(true);
+      scheduleRestoreRetry(measuredPages);
       return;
     }
 
@@ -237,15 +253,11 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     );
     setPageCount(measuredPages);
     setPageIndex((current) =>
-      resolvePageAfterReflow(
-        current,
-        measuredPages,
-        pendingProgressRef,
-        measuredChapterStarts,
-      ),
+      resolvePageForLayout(current, measuredPages, measuredChapterStarts),
     );
     setChapterPageStarts(measuredChapterStarts);
     setIsLayoutReady(true);
+    scheduleRestoreRetry(measuredPages);
   }, [pageCount, pageIndex, readerSettings]);
 
   useEffect(() => {
@@ -313,6 +325,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           return current;
         }
         pageIndexFromScrollRef.current = true;
+        hasUserNavigatedRef.current = true;
         rememberPagePosition(nextPage);
         return nextPage;
       });
@@ -344,39 +357,36 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
 
   useEffect(() => {
     if (!isLayoutReady || !manifest || !resource) return;
-    const currentSpine = manifest.spine[spineIndex];
-    if (!currentSpine) return;
-    const locator: ReadingLocator = {
+    const locator = buildReadingLocator({
       bookId,
-      href: currentSpine.href,
-      spineIndex,
-      progression: chapterStats.progression,
-      totalProgression,
-      displayPageIndex: pageIndex,
-      displayPageCount: pageCount,
-    };
+      spine: manifest.spine,
+      pageIndex,
+      pageCount,
+      chapterPageStarts,
+    });
+    if (!locator) return;
     latestLocatorRef.current = locator;
-    writeStoredProgress(locator);
-    const handle = window.setTimeout(() => {
-      void commands.saveProgress(bookId, locator);
-    }, 250);
-    return () => window.clearTimeout(handle);
+    if (!shouldSaveReadingPosition(locator, hasUserNavigatedRef.current)) {
+      return;
+    }
+    void commands.saveProgress(bookId, locator).catch(() => undefined);
   }, [
     bookId,
-    chapterStats.progression,
+    chapterPageStarts,
     isLayoutReady,
     manifest,
     pageCount,
     pageIndex,
     resource,
-    spineIndex,
-    totalProgression,
   ]);
 
   useEffect(() => {
     return () => {
       const locator = latestLocatorRef.current;
-      if (locator) {
+      if (
+        locator &&
+        shouldSaveReadingPosition(locator, hasUserNavigatedRef.current)
+      ) {
         void commands.saveProgress(bookId, locator).catch(() => undefined);
       }
     };
@@ -384,45 +394,29 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
 
   async function persistLatestProgress() {
     const locator = latestLocatorRef.current;
-    if (locator) {
-      writeStoredProgress(locator);
+    if (
+      locator &&
+      shouldSaveReadingPosition(locator, hasUserNavigatedRef.current)
+    ) {
       await commands.saveProgress(bookId, locator).catch(() => undefined);
     }
   }
 
   function locatorForPage(targetPageIndex: number): ReadingLocator | null {
     if (!isLayoutReady || !manifest || !resource) return null;
-    const targetSpineIndex = currentSpineIndex(
-      targetPageIndex,
-      chapterPageStarts,
-      manifest.spine.length,
-    );
-    const currentSpine = manifest.spine[targetSpineIndex];
-    if (!currentSpine) return null;
-    const targetChapterStats = chapterPageStats(
-      targetPageIndex,
+    return buildReadingLocator({
+      bookId,
+      spine: manifest.spine,
+      pageIndex: targetPageIndex,
       pageCount,
       chapterPageStarts,
-      targetSpineIndex,
-    );
-
-    return {
-      bookId,
-      href: currentSpine.href,
-      spineIndex: targetSpineIndex,
-      progression: targetChapterStats.progression,
-      totalProgression:
-        pageCount <= 1 ? 0 : targetPageIndex / Math.max(1, pageCount - 1),
-      displayPageIndex: targetPageIndex,
-      displayPageCount: pageCount,
-    };
+    });
   }
 
   function rememberPagePosition(targetPageIndex: number) {
     const locator = locatorForPage(targetPageIndex);
     if (!locator) return;
     latestLocatorRef.current = locator;
-    writeStoredProgress(locator);
   }
 
   function updatePagePosition(
@@ -434,6 +428,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           ? nextPageIndex(current)
           : nextPageIndex;
       const next = clampPageIndex(requested, Math.max(0, pageCount - 1));
+      hasUserNavigatedRef.current = true;
       rememberPagePosition(next);
       return next;
     });
@@ -473,6 +468,38 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
   function resetRenditionSettings() {
     setReaderSettings(resetReaderSettings());
     updatePagePosition(0);
+  }
+
+  function resolvePageForLayout(
+    currentPageIndex: number,
+    measuredPageCount: number,
+    measuredChapterStarts: number[],
+  ) {
+    const locator = pendingProgressRef.current ?? latestLocatorRef.current;
+    if (locator && shouldDeferSavedPositionRestore(locator, measuredPageCount)) {
+      return currentPageIndex;
+    }
+    pendingProgressRef.current = null;
+    restoreRetryCountRef.current = 0;
+    return resolveInitialPage(
+      locator,
+      measuredPageCount,
+      measuredChapterStarts,
+      currentPageIndex,
+    );
+  }
+
+  function scheduleRestoreRetry(measuredPageCount: number) {
+    const locator = pendingProgressRef.current;
+    if (
+      !locator ||
+      !shouldDeferSavedPositionRestore(locator, measuredPageCount) ||
+      restoreRetryCountRef.current >= RESTORE_LAYOUT_RETRY_LIMIT
+    ) {
+      return;
+    }
+    restoreRetryCountRef.current += 1;
+    window.setTimeout(repaginate, 80);
   }
 
   const currentThemeColors = themeColors(readerSettings.theme);
@@ -558,8 +585,12 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           style={{ backgroundColor: currentThemeColors.background }}
         >
           {message ? (
-            <div className="grid h-full place-items-center p-8 text-center text-red-950">
-              {message}
+            <div className="grid h-full place-items-center p-8">
+              <AppMessage
+                message={message}
+                onClose={() => setMessage(null)}
+                className="max-w-lg"
+              />
             </div>
           ) : (
             <iframe
@@ -931,50 +962,8 @@ type TocListItem = {
   depth: number;
 };
 
-type ChapterPageStats = {
-  chapterPageIndex: number;
-  chapterPageCount: number;
-  chapterRemaining: number;
-  progression: number;
-};
-
 function normalizeHrefForMatch(href: string) {
   return href.split("#")[0].replace(/^\.\//, "");
-}
-
-function progressStorageKey(bookId: string) {
-  return `${PROGRESS_STORAGE_PREFIX}${bookId}`;
-}
-
-function readStoredProgress(bookId: string): ReadingLocator | null {
-  try {
-    const value = window.localStorage.getItem(progressStorageKey(bookId));
-    if (!value) return null;
-    const parsed = JSON.parse(value) as ReadingLocator;
-    if (
-      parsed.bookId !== bookId ||
-      typeof parsed.href !== "string" ||
-      typeof parsed.spineIndex !== "number" ||
-      typeof parsed.progression !== "number" ||
-      typeof parsed.totalProgression !== "number"
-    ) {
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredProgress(locator: ReadingLocator) {
-  try {
-    window.localStorage.setItem(
-      progressStorageKey(locator.bookId),
-      JSON.stringify(locator),
-    );
-  } catch {
-    // LocalStorage can be unavailable in restricted WebViews; SQLite remains the fallback.
-  }
 }
 
 function findTocItemByHref(
@@ -998,96 +987,6 @@ function flattenToc(items: TocItemDto[], depth = 0): TocListItem[] {
     { item, depth },
     ...flattenToc(item.children, depth + 1),
   ]);
-}
-
-function currentSpineIndex(
-  pageIndex: number,
-  chapterPageStarts: number[],
-  spineCount: number,
-) {
-  if (spineCount <= 0) return 0;
-  let current = 0;
-  for (let index = 0; index < spineCount; index += 1) {
-    const start = chapterPageStarts[index] ?? 0;
-    if (start <= pageIndex) {
-      current = index;
-    }
-  }
-  return Math.min(current, spineCount - 1);
-}
-
-function resolvePageAfterReflow(
-  currentPageIndex: number,
-  measuredPageCount: number,
-  pendingProgressRef: { current: ReadingLocator | null },
-  measuredChapterStarts: number[],
-) {
-  const maxPage = Math.max(0, measuredPageCount - 1);
-  const pending = pendingProgressRef.current;
-  if (!pending) return Math.min(currentPageIndex, maxPage);
-
-  pendingProgressRef.current = null;
-  if (
-    pending.displayPageIndex !== undefined &&
-    pending.displayPageCount === measuredPageCount
-  ) {
-    return clampPageIndex(pending.displayPageIndex, maxPage);
-  }
-
-  const chapterStart = measuredChapterStarts[pending.spineIndex];
-  if (chapterStart !== undefined) {
-    const nextChapterStart =
-      measuredChapterStarts.find(
-        (candidate, index) =>
-          index > pending.spineIndex && candidate > chapterStart,
-      ) ?? measuredPageCount;
-    const chapterPageCount = Math.max(1, nextChapterStart - chapterStart);
-    return clampPageIndex(
-      Math.round(
-        chapterStart +
-          pending.progression * Math.max(0, chapterPageCount - 1),
-      ),
-      maxPage,
-    );
-  }
-
-  return clampPageIndex(Math.round(pending.totalProgression * maxPage), maxPage);
-}
-
-function clampPageIndex(pageIndex: number, maxPage: number) {
-  return Math.min(maxPage, Math.max(0, pageIndex));
-}
-
-function chapterPageStats(
-  pageIndex: number,
-  pageCount: number,
-  chapterPageStarts: number[],
-  spineIndex: number,
-): ChapterPageStats {
-  const start = Math.min(
-    pageCount - 1,
-    Math.max(0, chapterPageStarts[spineIndex] ?? 0),
-  );
-  const nextStart =
-    chapterPageStarts.find(
-      (candidate, index) => index > spineIndex && candidate > start,
-    ) ?? pageCount;
-  const chapterPageCount = Math.max(1, nextStart - start);
-  const chapterPageIndex = Math.min(
-    chapterPageCount - 1,
-    Math.max(0, pageIndex - start),
-  );
-  const chapterRemaining = Math.max(0, chapterPageCount - chapterPageIndex - 1);
-
-  return {
-    chapterPageIndex,
-    chapterPageCount,
-    chapterRemaining,
-    progression:
-      chapterPageCount <= 1
-        ? 0
-        : chapterPageIndex / Math.max(1, chapterPageCount - 1),
-  };
 }
 
 function measureChapterStarts(

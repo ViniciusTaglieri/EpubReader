@@ -1,0 +1,150 @@
+import type { ReadingLocator, SpineItemDto } from "../../shared/types/books";
+
+type BuildReadingLocatorInput = {
+  bookId: string;
+  spine: SpineItemDto[];
+  pageIndex: number;
+  pageCount: number;
+  chapterPageStarts: number[];
+};
+
+export function buildReadingLocator({
+  bookId,
+  spine,
+  pageIndex,
+  pageCount,
+  chapterPageStarts,
+}: BuildReadingLocatorInput): ReadingLocator | null {
+  const spineIndex = currentSpineIndex(pageIndex, chapterPageStarts, spine.length);
+  const spineItem = spine[spineIndex];
+  if (!spineItem) return null;
+
+  const chapterStats = chapterPageStats(
+    pageIndex,
+    pageCount,
+    chapterPageStarts,
+    spineIndex,
+  );
+
+  return {
+    bookId,
+    href: spineItem.href,
+    spineIndex,
+    progression: chapterStats.progression,
+    totalProgression: pageCount <= 1 ? 0 : pageIndex / Math.max(1, pageCount - 1),
+    displayPageIndex: pageIndex,
+    displayPageCount: pageCount,
+  };
+}
+
+export function resolveInitialPage(
+  savedLocator: ReadingLocator | null,
+  measuredPageCount: number,
+  measuredChapterStarts: number[],
+  currentPageIndex: number,
+) {
+  const maxPage = Math.max(0, measuredPageCount - 1);
+  if (!savedLocator) return clampPageIndex(currentPageIndex, maxPage);
+  if (
+    !Number.isFinite(savedLocator.progression) ||
+    !Number.isFinite(savedLocator.totalProgression)
+  ) {
+    return clampPageIndex(currentPageIndex, maxPage);
+  }
+
+  if (
+    savedLocator.displayPageIndex !== undefined &&
+    savedLocator.displayPageCount === measuredPageCount
+  ) {
+    return clampPageIndex(savedLocator.displayPageIndex, maxPage);
+  }
+
+  return clampPageIndex(
+    Math.round(savedLocator.totalProgression * maxPage),
+    maxPage,
+  );
+}
+
+export function shouldSaveReadingPosition(
+  locator: ReadingLocator,
+  hasUserNavigated: boolean,
+) {
+  return (
+    hasUserNavigated &&
+    Number.isFinite(locator.progression) &&
+    Number.isFinite(locator.totalProgression)
+  );
+}
+
+export function shouldDeferSavedPositionRestore(
+  locator: ReadingLocator,
+  measuredPageCount: number,
+) {
+  const savedPageIndex = locator.displayPageIndex ?? 0;
+  return (
+    measuredPageCount <= 1 &&
+    (locator.totalProgression > 0 || savedPageIndex > 0)
+  );
+}
+
+export function clampPageIndex(pageIndex: number, maxPage: number) {
+  if (!Number.isFinite(pageIndex)) return 0;
+  return Math.min(maxPage, Math.max(0, pageIndex));
+}
+
+export function currentSpineIndex(
+  pageIndex: number,
+  chapterPageStarts: number[],
+  spineCount: number,
+) {
+  if (spineCount <= 0) return 0;
+
+  let current = 0;
+  for (let index = 0; index < spineCount; index += 1) {
+    const start = chapterPageStarts[index] ?? 0;
+    if (start <= pageIndex) {
+      current = index;
+    }
+  }
+
+  return Math.min(current, spineCount - 1);
+}
+
+type ChapterPageStats = {
+  chapterPageIndex: number;
+  chapterPageCount: number;
+  chapterRemaining: number;
+  progression: number;
+};
+
+export function chapterPageStats(
+  pageIndex: number,
+  pageCount: number,
+  chapterPageStarts: number[],
+  spineIndex: number,
+): ChapterPageStats {
+  const start = Math.min(
+    pageCount - 1,
+    Math.max(0, chapterPageStarts[spineIndex] ?? 0),
+  );
+  const nextStart =
+    chapterPageStarts.find(
+      (candidate, index) => index > spineIndex && candidate > start,
+    ) ?? pageCount;
+  const chapterPageCount = Math.max(1, nextStart - start);
+  const chapterPageIndex = Math.min(
+    chapterPageCount - 1,
+    Math.max(0, pageIndex - start),
+  );
+  const chapterRemaining = Math.max(0, chapterPageCount - chapterPageIndex - 1);
+
+  return {
+    chapterPageIndex,
+    chapterPageCount,
+    chapterRemaining,
+    progression:
+      chapterPageCount <= 1
+        ? 0
+        : chapterPageIndex / Math.max(1, chapterPageCount - 1),
+  };
+}
