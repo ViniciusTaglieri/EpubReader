@@ -3,11 +3,15 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type {
   BookDetailDto,
   BookDto,
+  BookmarkDto,
   CollectionDto,
   EpubManifestDto,
+  HighlightDto,
+  HighlightRangeDto,
   ReadingLocator,
   ReadingSettingsDto,
-  ResourceDto
+  ResourceDto,
+  SearchResultDto
 } from "../types/books";
 import { normalizePickedEpubPaths } from "../../features/library/importPaths";
 
@@ -54,8 +58,28 @@ export const commands = {
     invoke<void>("save_progress", { bookId, locator }),
   getProgress: (bookId: string) =>
     invoke<ReadingLocator | null>("get_progress", { bookId }),
+  createBookmark: (bookId: string, locator: ReadingLocator, label?: string) =>
+    invoke<BookmarkDto>("create_bookmark", { bookId, locator, label }),
+  listBookmarks: (bookId: string) =>
+    invoke<BookmarkDto[]>("list_bookmarks", { bookId }),
+  deleteBookmark: (bookmarkId: string) =>
+    invoke<void>("delete_bookmark", { bookmarkId }),
+  createHighlight: (
+    bookId: string,
+    range: HighlightRangeDto,
+    color: string,
+    note?: string
+  ) => invoke<HighlightDto>("create_highlight", { bookId, range, color, note }),
+  listHighlights: (bookId: string) =>
+    invoke<HighlightDto[]>("list_highlights", { bookId }),
+  updateHighlightNote: (highlightId: string, note: string) =>
+    invoke<void>("update_highlight_note", { highlightId, note }),
+  searchInBook: (bookId: string, query: string) =>
+    invoke<SearchResultDto[]>("search_in_book", { bookId, query }),
   updateReadingSettings: (settings: ReadingSettingsDto) =>
-    invoke<void>("update_reading_settings", { settings })
+    invoke<void>("update_reading_settings", { settings }),
+  getReadingSettings: (settingsId: string) =>
+    invoke<ReadingSettingsDto | null>("get_reading_settings", { settingsId })
 };
 
 export function errorMessage(error: unknown): string {

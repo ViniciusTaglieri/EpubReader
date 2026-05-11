@@ -50,7 +50,8 @@ pub fn run() {
             commands::annotations::list_highlights,
             commands::annotations::update_highlight_note,
             commands::reader::search_in_book,
-            commands::settings::update_reading_settings
+            commands::settings::update_reading_settings,
+            commands::settings::get_reading_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running Reading System");

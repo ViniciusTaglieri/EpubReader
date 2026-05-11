@@ -9,3 +9,12 @@ pub fn update_reading_settings(
     let connection = state.db.connect()?;
     settings::update_reading_settings(&connection, settings)
 }
+
+#[tauri::command]
+pub fn get_reading_settings(
+    settings_id: String,
+    state: State<'_, AppState>,
+) -> Result<Option<ReadingSettingsDto>, AppError> {
+    let connection = state.db.connect()?;
+    settings::get_reading_settings(&connection, &settings_id)
+}

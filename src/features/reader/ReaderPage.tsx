@@ -20,6 +20,7 @@ import { buildReaderDocument } from "./readerDocument";
 import {
   DEFAULT_READER_SETTINGS,
   resetReaderSettings,
+  readerSettingsFromDto,
   themeColors,
   type ReaderSettings,
   type ReaderTheme,
@@ -89,10 +90,16 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
         const initialProgress = progress ?? null;
         pendingProgressRef.current = initialProgress;
         latestLocatorRef.current = initialProgress;
-        const loadedRendition = await commands.getBookRendition(bookId);
+        const [loadedRendition, savedSettings] = await Promise.all([
+          commands.getBookRendition(bookId),
+          commands.getReadingSettings("default"),
+        ]);
         if (cancelled) return;
         setManifest(loadedManifest);
         setResource(loadedRendition);
+        if (savedSettings) {
+          setReaderSettings(readerSettingsFromDto(savedSettings));
+        }
         setPageIndex(0);
         setMessage(null);
       } catch (error) {

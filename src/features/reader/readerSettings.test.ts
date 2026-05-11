@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_READER_SETTINGS, resetReaderSettings, themeColors } from "./readerSettings";
+import {
+  DEFAULT_READER_SETTINGS,
+  readerSettingsFromDto,
+  resetReaderSettings,
+  themeColors,
+} from "./readerSettings";
 
 describe("readerSettings", () => {
   it("enables the requested rendition options by default", () => {
@@ -25,5 +30,33 @@ describe("readerSettings", () => {
     expect(firstReset).toEqual(DEFAULT_READER_SETTINGS);
     expect(firstReset).not.toBe(DEFAULT_READER_SETTINGS);
     expect(firstReset).not.toBe(secondReset);
+  });
+
+  it("maps persisted settings and preserves layout defaults", () => {
+    const settings = readerSettingsFromDto({
+      fontFamily: "Arial",
+      fontSize: 24,
+      lineHeight: 1.9,
+      margin: 96,
+      paragraphSpacing: 1.25,
+      theme: "dark",
+      textAlign: "justify",
+      hyphenationEnabled: false,
+      ligaturesEnabled: true,
+    });
+
+    expect(settings).toMatchObject({
+      fontFamily: "Arial",
+      fontSize: 24,
+      lineHeight: 1.9,
+      margin: 96,
+      paragraphSpacing: 1.25,
+      theme: "dark",
+      textAlign: "justify",
+      hyphenationEnabled: false,
+      ligaturesEnabled: true,
+      readingMode: DEFAULT_READER_SETTINGS.readingMode,
+      spreadMode: DEFAULT_READER_SETTINGS.spreadMode,
+    });
   });
 });

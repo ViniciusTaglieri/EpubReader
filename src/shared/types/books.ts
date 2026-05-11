@@ -75,6 +75,52 @@ export type ReadingLocator = {
   displayPageCount?: number;
 };
 
+export type BookmarkDto = {
+  id: string;
+  bookId: string;
+  href: string;
+  spineIndex: number;
+  progression: number;
+  totalProgression: number;
+  label?: string | null;
+  textSnippet?: string | null;
+  createdAt: string;
+};
+
+export type HighlightRangeDto = {
+  locator: ReadingLocator;
+  selectedText: string;
+  textSnippet?: string | null;
+  cfi?: string | null;
+  cssSelector?: string | null;
+  domRangeJson?: string | null;
+};
+
+export type HighlightDto = {
+  id: string;
+  bookId: string;
+  href: string;
+  spineIndex: number;
+  progression: number;
+  totalProgression: number;
+  selectedText: string;
+  color: string;
+  note?: string | null;
+  cfi?: string | null;
+  cssSelector?: string | null;
+  domRangeJson?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SearchResultDto = {
+  href: string;
+  spineIndex: number;
+  progression: number;
+  totalProgression: number;
+  snippet: string;
+};
+
 export type ReadingSettingsDto = {
   id: string;
   name: string;

@@ -35,6 +35,35 @@ export function resetReaderSettings(): ReaderSettings {
   return { ...DEFAULT_READER_SETTINGS };
 }
 
+export function readerSettingsFromDto(settings: {
+  fontFamily: string;
+  fontSize: number;
+  lineHeight: number;
+  margin: number;
+  paragraphSpacing: number;
+  theme: string;
+  textAlign: string;
+  hyphenationEnabled: boolean;
+  ligaturesEnabled: boolean;
+}): ReaderSettings {
+  return {
+    ...DEFAULT_READER_SETTINGS,
+    fontFamily: settings.fontFamily,
+    fontSize: settings.fontSize,
+    lineHeight: settings.lineHeight,
+    margin: settings.margin,
+    paragraphSpacing: settings.paragraphSpacing,
+    theme: isReaderTheme(settings.theme)
+      ? settings.theme
+      : DEFAULT_READER_SETTINGS.theme,
+    textAlign: isTextAlignMode(settings.textAlign)
+      ? settings.textAlign
+      : DEFAULT_READER_SETTINGS.textAlign,
+    hyphenationEnabled: settings.hyphenationEnabled,
+    ligaturesEnabled: settings.ligaturesEnabled,
+  };
+}
+
 export function themeColors(theme: ReaderTheme): { background: string; ink: string } {
   if (theme === "light") {
     return { background: "#f7f3ea", ink: "#171717" };
@@ -46,4 +75,12 @@ export function themeColors(theme: ReaderTheme): { background: string; ink: stri
     return { background: "#000000", ink: "#f1f1f1" };
   }
   return { background: "#f3e2bf", ink: "#21170c" };
+}
+
+function isReaderTheme(value: string): value is ReaderTheme {
+  return value === "light" || value === "dark" || value === "sepia" || value === "oled";
+}
+
+function isTextAlignMode(value: string): value is TextAlignMode {
+  return value === "left" || value === "justify";
 }
