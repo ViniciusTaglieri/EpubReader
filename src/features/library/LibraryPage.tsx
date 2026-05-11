@@ -2,17 +2,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
 import {
   BookMarked,
-  ChevronDown,
   Edit3,
   FolderOpen,
-  LayoutGrid,
-  Library,
-  List,
   MoreVertical,
-  PanelLeftOpen,
   Plus,
-  Search,
-  Settings,
   Trash2,
   X,
 } from "lucide-react";
@@ -31,10 +24,11 @@ import {
   type AppMessageVariant,
 } from "../../shared/components/AppMessage";
 import type { BookDto, CollectionDto } from "../../shared/types/books";
+import { LibrarySidebar } from "./LibrarySidebar";
+import { LibraryToolbar } from "./LibraryToolbar";
+import type { LibrarySection, LibraryView } from "./libraryTypes";
 
 type CoverMap = Record<string, string>;
-type LibraryView = "grid" | "list";
-type LibrarySection = "library" | "collections" | "settings";
 
 const LIBRARY_FILTERS_STORAGE_KEY = "epub-reader:library-filters";
 const LIBRARY_VIEW_STORAGE_KEY = "epub-reader:library-view";
@@ -367,198 +361,43 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
       onDragOver={(event) => event.preventDefault()}
       onDrop={handleDrop}
     >
-      <aside
-        className={`h-screen shrink-0 overflow-y-auto border-r border-white/10 bg-black/25 p-4 transition-[width] ${
-          sidebarCollapsed ? "w-20" : "w-64"
-        }`}
-      >
-        <nav className="space-y-2">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <BookMarked className="text-amber-300" size={28} />
-              {sidebarCollapsed ? null : (
-                <h1 className="truncate text-xl font-bold">Leitor EPUB</h1>
-              )}
-            </div>
-          </div>
-          <SideItem
-            icon={<PanelLeftOpen size={22} />}
-            label={sidebarCollapsed ? "Expandir sidebar" : "Recolher sidebar"}
-            collapsed={sidebarCollapsed}
-            onClick={() => setSidebarCollapsed((current) => !current)}
-          />
-          <SideItem
-            icon={<Library size={22} />}
-            label="Biblioteca"
-            collapsed={sidebarCollapsed}
-            active={activeSection === "library"}
-            onClick={() => {
-              setActiveSection("library");
-              setSelectedCollectionId(null);
-            }}
-          />
-          <SideItem
-            icon={<FolderOpen size={22} />}
-            label="Colecoes"
-            collapsed={sidebarCollapsed}
-            active={activeSection === "collections" && !selectedCollectionId}
-            trailingIcon={
-              sidebarCollapsed ? null : (
-                <ChevronDown
-                  size={16}
-                  className={`transition ${collectionsExpanded ? "" : "-rotate-90"}`}
-                />
-              )
-            }
-            ariaExpanded={collectionsExpanded}
-            onClick={() => {
-              setActiveSection("collections");
-              setSelectedCollectionId(null);
-              setCollectionsExpanded((current) => !current);
-            }}
-          />
-          {!sidebarCollapsed && collectionsExpanded
-            ? collections.map((collection) => (
-                <SideItem
-                  key={collection.id}
-                  icon={<span className="h-2 w-2 rounded-full bg-amber-300" />}
-                  label={`${collection.name} (${collection.bookIds.length})`}
-                  collapsed={sidebarCollapsed}
-                  active={
-                    activeSection === "collections" &&
-                    selectedCollectionId === collection.id
-                  }
-                  inset
-                  onClick={() => {
-                    setActiveSection("collections");
-                    setSelectedCollectionId(collection.id);
-                  }}
-                />
-              ))
-            : null}
-          <SideItem
-            icon={<Settings size={22} />}
-            label="Configuracoes"
-            collapsed={sidebarCollapsed}
-            active={activeSection === "settings"}
-            onClick={() => setActiveSection("settings")}
-          />
-        </nav>
-      </aside>
+      <LibrarySidebar
+        collapsed={sidebarCollapsed}
+        collectionsExpanded={collectionsExpanded}
+        collections={collections}
+        activeSection={activeSection}
+        selectedCollectionId={selectedCollectionId}
+        onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
+        onOpenLibrary={() => {
+          setActiveSection("library");
+          setSelectedCollectionId(null);
+        }}
+        onToggleCollections={() => {
+          setActiveSection("collections");
+          setSelectedCollectionId(null);
+          setCollectionsExpanded((current) => !current);
+        }}
+        onOpenCollection={(collectionId) => {
+          setActiveSection("collections");
+          setSelectedCollectionId(collectionId);
+        }}
+        onOpenSettings={() => setActiveSection("settings")}
+      />
 
       <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="shrink-0 border-b border-white/10 bg-[#12110f]/95 p-6 backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold">
-                {sectionTitle(activeSection, selectedCollection)}
-              </h2>
-              <p className="mt-1 text-sm text-neutral-400">
-                {sectionDescription(activeSection, selectedCollection)}
-              </p>
-              {selectedCollection ? (
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openCollectionDialog([], selectedCollection)}
-                    className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-xs text-neutral-200 transition hover:bg-white/10"
-                  >
-                    <Edit3 size={14} />
-                    Editar colecao
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => deleteCollection(selectedCollection)}
-                    className="inline-flex items-center gap-2 rounded-md border border-red-300/20 px-3 py-2 text-xs text-red-200 transition hover:bg-red-400/10"
-                  >
-                    <Trash2 size={14} />
-                    Excluir
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
-              <label className="relative min-w-64 max-w-lg flex-1">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
-                  size={20}
-                />
-                <input
-                  value={filters.query}
-                  onChange={(event) =>
-                    setFilters((current) => ({
-                      ...current,
-                      query: event.target.value,
-                    }))
-                  }
-                  placeholder="Buscar livro ou autor"
-                  className="h-11 w-full rounded-lg border border-white/10 bg-white/[0.06] pl-11 pr-11 text-sm outline-none ring-amber-300/30 transition placeholder:text-neutral-400 focus:ring-4"
-                />
-                {filters.query ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFilters((current) => ({ ...current, query: "" }))
-                    }
-                    className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md text-neutral-400 transition hover:bg-white/10 hover:text-white"
-                    title="Limpar busca"
-                    aria-label="Limpar busca"
-                  >
-                    <X size={16} />
-                  </button>
-                ) : null}
-              </label>
-              <select
-                value={
-                  filters.favorite === "favorites"
-                    ? "favorites"
-                    : filters.status
-                }
-                onChange={(event) =>
-                  setFilters((current) => {
-                    if (event.target.value === "favorites") {
-                      return {
-                        ...current,
-                        status: "all",
-                        favorite: "favorites",
-                      };
-                    }
-                    return {
-                      ...current,
-                      status: event.target.value as LibraryFilters["status"],
-                      favorite: "all",
-                    };
-                  })
-                }
-                className="h-10 rounded-md border border-white/10 bg-neutral-900 px-3 text-sm"
-              >
-                <option value="all">Todos</option>
-                <option value="favorites">Favoritos</option>
-                <option value="unread">Não Iniciados</option>
-                <option value="reading">Lendo</option>
-                <option value="finished">Finalizados</option>
-              </select>
-              <select
-                value={filters.sortBy}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    sortBy: event.target.value as LibrarySort,
-                  }))
-                }
-                className="h-10 rounded-md border border-white/10 bg-neutral-900 px-3 text-sm"
-              >
-                <option value="last_opened">Ultimo aberto</option>
-                <option value="published_at">Data de publicacao</option>
-                <option value="title">Titulo</option>
-                <option value="author">Autor</option>
-                <option value="progress">Progresso</option>
-                <option value="size">Tamanho do livro</option>
-              </select>
-              <ViewModeToggle value={view} onChange={setView} />
-            </div>
-          </div>
+          <LibraryToolbar
+            activeSection={activeSection}
+            selectedCollection={selectedCollection}
+            filters={filters}
+            view={view}
+            onFiltersChange={setFilters}
+            onViewChange={setView}
+            onEditCollection={(collection) =>
+              openCollectionDialog([], collection)
+            }
+            onDeleteCollection={deleteCollection}
+          />
 
           {message ? (
             <AppMessage
@@ -852,11 +691,24 @@ function CollectionDialog({
   mode: "create" | "edit";
 }) {
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-black/60 p-6 backdrop-blur-sm">
-      <section className="max-h-[86vh] w-full max-w-3xl overflow-hidden rounded-xl border border-white/10 bg-[#1f1d1a] shadow-2xl shadow-black/50">
+    <div
+      className="fixed inset-0 z-40 grid place-items-center bg-black/60 p-6 backdrop-blur-sm"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") onCancel();
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="collection-dialog-title"
+        className="max-h-[86vh] w-full max-w-3xl overflow-hidden rounded-xl border border-white/10 bg-[#1f1d1a] shadow-2xl shadow-black/50"
+      >
         <header className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold text-white">
+            <h2
+              id="collection-dialog-title"
+              className="text-base font-semibold text-white"
+            >
               {mode === "edit" ? "Editar colecao" : "Criar colecao"}
             </h2>
             <p className="text-xs text-neutral-400">
@@ -868,6 +720,7 @@ function CollectionDialog({
             onClick={onCancel}
             className="grid h-9 w-9 place-items-center rounded-md text-neutral-300 transition hover:bg-white/10 hover:text-white"
             title="Fechar"
+            aria-label="Fechar"
           >
             <X size={18} />
           </button>
@@ -957,110 +810,6 @@ function CollectionDialog({
       </section>
     </div>
   );
-}
-
-function ViewModeToggle({
-  value,
-  onChange,
-}: {
-  value: LibraryView;
-  onChange: (value: LibraryView) => void;
-}) {
-  return (
-    <div className="flex h-10 overflow-hidden rounded-md border border-white/10 bg-neutral-900">
-      <button
-        type="button"
-        title="Visualizacao em grid"
-        aria-pressed={value === "grid"}
-        onClick={() => onChange("grid")}
-        className={`grid w-10 place-items-center transition ${
-          value === "grid"
-            ? "bg-amber-300/15 text-amber-200"
-            : "text-neutral-300 hover:bg-white/10"
-        }`}
-      >
-        <LayoutGrid size={18} />
-      </button>
-      <button
-        type="button"
-        title="Visualizacao em lista"
-        aria-pressed={value === "list"}
-        onClick={() => onChange("list")}
-        className={`grid w-10 place-items-center border-l border-white/10 transition ${
-          value === "list"
-            ? "bg-amber-300/15 text-amber-200"
-            : "text-neutral-300 hover:bg-white/10"
-        }`}
-      >
-        <List size={18} />
-      </button>
-    </div>
-  );
-}
-
-function SideItem({
-  icon,
-  label,
-  trailingIcon,
-  active = false,
-  inset = false,
-  collapsed = false,
-  ariaExpanded,
-  onClick,
-}: {
-  icon: ReactNode;
-  label: string;
-  trailingIcon?: ReactNode;
-  active?: boolean;
-  inset?: boolean;
-  collapsed?: boolean;
-  ariaExpanded?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      title={collapsed ? label : undefined}
-      onClick={onClick}
-      aria-expanded={ariaExpanded}
-      className={`group flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm transition ${
-        active
-          ? "bg-white/10 font-semibold text-amber-200"
-          : "text-neutral-300 hover:bg-white/[0.06] hover:text-white"
-      } ${inset ? "py-2 pl-8 text-xs" : ""} ${collapsed ? "justify-center px-0" : ""}`}
-    >
-      {icon}
-      {collapsed ? null : (
-        <>
-          <span className="min-w-0 flex-1 truncate">{label}</span>
-          {trailingIcon ? (
-            <span className="grid h-6 w-6 shrink-0 place-items-center text-neutral-400 opacity-0 transition group-hover:text-amber-100 group-hover:opacity-100 group-focus-visible:text-amber-100 group-focus-visible:opacity-100">
-              {trailingIcon}
-            </span>
-          ) : null}
-        </>
-      )}
-    </button>
-  );
-}
-
-function sectionTitle(section: LibrarySection, collection?: CollectionDto) {
-  if (section === "collections") return collection?.name ?? "Colecoes";
-  if (section === "settings") return "Configuracoes";
-  return "Biblioteca";
-}
-
-function sectionDescription(
-  section: LibrarySection,
-  collection?: CollectionDto,
-) {
-  if (section === "collections") {
-    return collection
-      ? "Livros organizados nesta colecao."
-      : "Crie colecoes e organize seus EPUBs por tema, estudo ou prioridade.";
-  }
-  if (section === "settings") return "Ajustes gerais serao adicionados aqui.";
-  return "EPUBs importados para o armazenamento local do app.";
 }
 
 function EmptyState({
