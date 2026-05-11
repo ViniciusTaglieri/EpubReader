@@ -1,7 +1,20 @@
-use crate::error::AppError;
+use crate::{db::schema, error::AppError};
 use rusqlite::Connection;
 
 pub fn run(connection: &Connection) -> Result<(), AppError> {
+    let version = schema::current_version(connection)?;
+    if version < 1 {
+        migrate_v1(connection)?;
+        schema::set_version(connection, 1)?;
+    }
+    if version < 2 {
+        migrate_v2_indexes(connection)?;
+        schema::set_version(connection, 2)?;
+    }
+    Ok(())
+}
+
+fn migrate_v1(connection: &Connection) -> Result<(), AppError> {
     connection.execute_batch(
         r#"
         CREATE TABLE IF NOT EXISTS books (
@@ -152,6 +165,19 @@ pub fn run(connection: &Connection) -> Result<(), AppError> {
     Ok(())
 }
 
+fn migrate_v2_indexes(connection: &Connection) -> Result<(), AppError> {
+    connection.execute_batch(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_books_last_opened ON books(last_opened_at);
+        CREATE INDEX IF NOT EXISTS idx_books_imported_at ON books(imported_at);
+        CREATE INDEX IF NOT EXISTS idx_books_status_favorite ON books(reading_status, is_favorite);
+        CREATE INDEX IF NOT EXISTS idx_collection_books_book ON collection_books(book_id);
+        CREATE INDEX IF NOT EXISTS idx_reading_sessions_book_started ON reading_sessions(book_id, started_at);
+        "#,
+    )?;
+    Ok(())
+}
+
 fn ensure_book_text_length_column(connection: &Connection) -> Result<(), AppError> {
     ensure_column(
         connection,
@@ -159,6 +185,38 @@ fn ensure_book_text_length_column(connection: &Connection) -> Result<(), AppErro
         "text_length",
         "ALTER TABLE books ADD COLUMN text_length INTEGER NOT NULL DEFAULT 0",
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::run;
+    use crate::db::schema;
+    use rusqlite::Connection;
+
+    #[test]
+    fn migrations_set_latest_user_version() {
+        let connection = Connection::open_in_memory().expect("connection");
+
+        run(&connection).expect("migrate");
+
+        assert_eq!(schema::current_version(&connection).expect("version"), 2);
+    }
+
+    #[test]
+    fn migrations_create_collection_book_lookup_index() {
+        let connection = Connection::open_in_memory().expect("connection");
+
+        run(&connection).expect("migrate");
+
+        let count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_collection_books_book'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("index count");
+        assert_eq!(count, 1);
+    }
 }
 
 fn ensure_column(

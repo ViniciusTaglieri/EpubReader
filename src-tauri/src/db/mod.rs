@@ -1,5 +1,6 @@
 pub mod migrations;
 pub mod repositories;
+pub mod schema;
 
 use crate::error::AppError;
 use rusqlite::Connection;
