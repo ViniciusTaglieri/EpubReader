@@ -160,7 +160,10 @@ fn snippet_around_match(
     context_chars: usize,
 ) -> String {
     let match_end = byte_position.saturating_add(needle_len).min(text.len());
-    let mut boundaries = text.char_indices().map(|(index, _)| index).collect::<Vec<_>>();
+    let mut boundaries = text
+        .char_indices()
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
     boundaries.push(text.len());
 
     let start_char = boundaries

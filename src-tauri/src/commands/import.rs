@@ -3,7 +3,7 @@ use crate::{
     epub::{parser::parse_epub, resources, text::estimate_epub_text_length},
     error::AppError,
     models::BookDto,
-    storage::files::sha256_file,
+    storage::{files::sha256_file, staging::ImportStaging},
     AppState,
 };
 use chrono::Utc;
@@ -39,9 +39,11 @@ pub fn import_epub(path: String, state: State<'_, AppState>) -> Result<BookDto, 
 
     let book_id = Uuid::new_v4().to_string();
     let book_dir = state.paths.book_dir(&book_id);
-    let extracted_dir = book_dir.join("extracted");
-    fs::create_dir_all(&book_dir)?;
-    let local_epub = book_dir.join("original.epub");
+    let staging = ImportStaging::new(&state.paths.cache_dir())?;
+    let staging_dir = staging.path().to_path_buf();
+    let extracted_dir = staging_dir.join("extracted");
+    fs::create_dir_all(&staging_dir)?;
+    let local_epub = staging_dir.join("original.epub");
     fs::copy(&source, &local_epub)?;
     resources::extract_epub(&local_epub, &extracted_dir)?;
     let text_length = estimate_epub_text_length(&local_epub, &parsed);
@@ -49,9 +51,9 @@ pub fn import_epub(path: String, state: State<'_, AppState>) -> Result<BookDto, 
     let cover_path = if let Some(cover_href) = &parsed.cover_href {
         let bytes = resources::read_zip_bytes(&local_epub, cover_href).ok();
         if let Some(bytes) = bytes {
-            let cover = book_dir.join("cover.jpg");
+            let cover = staging_dir.join("cover.jpg");
             resources::write_bytes(&cover, &bytes)?;
-            Some(cover.to_string_lossy().to_string())
+            Some(book_dir.join("cover.jpg").to_string_lossy().to_string())
         } else {
             None
         }
@@ -59,12 +61,12 @@ pub fn import_epub(path: String, state: State<'_, AppState>) -> Result<BookDto, 
         None
     };
 
-    let manifest_path = book_dir.join("manifest.json");
+    let manifest_path = staging_dir.join("manifest.json");
     resources::write_bytes(
         &manifest_path,
         serde_json::to_string_pretty(&parsed.dto(&book_id))?.as_bytes(),
     )?;
-    resources::write_bytes(book_dir.join("search_index.json").as_path(), b"[]")?;
+    resources::write_bytes(staging_dir.join("search_index.json").as_path(), b"[]")?;
 
     let now = Utc::now().to_rfc3339();
     let book = BookDto {
@@ -82,7 +84,7 @@ pub fn import_epub(path: String, state: State<'_, AppState>) -> Result<BookDto, 
         published_at: parsed.metadata.published_at,
         subjects: parsed.metadata.subjects,
         file_hash,
-        file_path: local_epub.to_string_lossy().to_string(),
+        file_path: book_dir.join("original.epub").to_string_lossy().to_string(),
         cover_path,
         imported_at: now.clone(),
         updated_at: now,
@@ -92,7 +94,11 @@ pub fn import_epub(path: String, state: State<'_, AppState>) -> Result<BookDto, 
         text_length,
         is_favorite: false,
     };
-    books::insert_book(&connection, &book)?;
+    staging.promote(&book_dir)?;
+    if let Err(error) = books::insert_book(&connection, &book) {
+        let _ = fs::remove_dir_all(&book_dir);
+        return Err(error);
+    }
     Ok(book)
 }
 
