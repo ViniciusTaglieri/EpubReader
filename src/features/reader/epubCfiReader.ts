@@ -4,12 +4,29 @@ export type EpubBook = {
   open: (data: ArrayBuffer, type: "binary") => Promise<void>;
   renderTo: (element: HTMLElement, options: Record<string, unknown>) => Rendition;
   destroy?: () => void;
+  loaded?: {
+    navigation?: Promise<EpubNavigation>;
+  };
+  navigation?: EpubNavigation;
   locations?: {
     generate?: (chars: number) => Promise<unknown>;
     length?: () => number;
     percentageFromCfi?: (cfi: string) => number;
     locationFromCfi?: (cfi: string) => number;
+    cfiFromLocation?: (location: number) => string;
   };
+};
+
+export type EpubNavigation = {
+  toc?: EpubTocItem[];
+};
+
+export type EpubTocItem = {
+  id?: string;
+  href: string;
+  label: string;
+  subitems?: EpubTocItem[];
+  parent?: string;
 };
 
 export type Rendition = {

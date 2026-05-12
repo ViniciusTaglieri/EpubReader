@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Columns2,
+  ListTree,
   Loader2,
   RotateCcw,
   Settings2,
@@ -27,6 +28,7 @@ import {
   saveReaderSettings,
   type EpubBook,
   type EpubLocation,
+  type EpubTocItem,
   type ReaderFlow,
   type ReaderSettings,
   type ReaderSpread,
@@ -40,15 +42,27 @@ type ReaderPageProps = {
   onBack: () => void;
 };
 
+type ReaderTocItem = EpubTocItem & {
+  depth: number;
+};
+
 export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
   const viewerRef = useRef<HTMLDivElement | null>(null);
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const latestLocatorRef = useRef<ReadingLocator | null>(null);
   const saveChainRef = useRef(Promise.resolve());
+  const tocItemsRef = useRef<ReaderTocItem[]>([]);
   const [book, setBook] = useState<BookDetailDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [tocOpen, setTocOpen] = useState(false);
+  const [tocItems, setTocItems] = useState<ReaderTocItem[]>([]);
+  const [currentTocIndex, setCurrentTocIndex] = useState(0);
+  const [chapterPageStats, setChapterPageStats] = useState({
+    currentPage: 1,
+    totalPages: 1,
+  });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
     loadReaderSettings(),
@@ -86,6 +100,16 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
         epubRef.current = epub;
         await epub.open(bookData, "binary");
         if (cancelled) return;
+        const navigation =
+          (await epub.loaded?.navigation?.catch(() => undefined)) ??
+          epub.navigation;
+        if (!cancelled) {
+          const flatToc = flattenToc(navigation?.toc ?? []);
+          tocItemsRef.current = flatToc;
+          setTocItems(flatToc);
+          setCurrentTocIndex(0);
+          setChapterPageStats({ currentPage: 1, totalPages: 1 });
+        }
 
         const initialViewerSize = getViewerSize(viewerElement);
         const rendition = epub.renderTo(viewerElement, {
@@ -104,6 +128,14 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           const locator = locatorFromCfi(bookId, cfi, location, epub);
           latestLocatorRef.current = locator;
           setPageStats(pageStatsFromLocation(location, epub, cfi));
+          setChapterPageStats(chapterPageStatsFromLocation(location));
+          setCurrentTocIndex((currentIndex) =>
+            currentTocIndexFromHref(
+              location.start?.href,
+              tocItemsRef.current,
+              currentIndex,
+            ),
+          );
           saveChainRef.current = saveChainRef.current
             .catch(() => undefined)
             .then(() =>
@@ -139,6 +171,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
       epubRef.current?.destroy?.();
       renditionRef.current = null;
       epubRef.current = null;
+      tocItemsRef.current = [];
       viewerElement.replaceChildren();
     };
   }, [bookId]);
@@ -204,6 +237,41 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     void renditionRef.current?.next();
   }
 
+  function goToTocItem(item: ReaderTocItem, index: number) {
+    const rendition = renditionRef.current;
+    if (!rendition) return;
+    setCurrentTocIndex(index);
+    setTocOpen(false);
+    void rendition.display(item.href).catch((error) => {
+      setMessage(errorMessage(error));
+    });
+  }
+
+  function goToPage(pageIndex: number) {
+    const epub = epubRef.current;
+    const rendition = renditionRef.current;
+    if (!epub || !rendition) return;
+
+    const totalLocations = Math.max(0, epub.locations?.length?.() ?? 0);
+    if (totalLocations <= 0) return;
+
+    const locationIndex = Math.min(
+      totalLocations - 1,
+      Math.max(0, Math.round(pageIndex)),
+    );
+    const cfi = epub.locations?.cfiFromLocation?.(locationIndex);
+    if (!cfi) return;
+
+    setPageStats({
+      currentPage: locationIndex + 1,
+      totalPages: totalLocations,
+      remainingPages: Math.max(0, totalLocations - locationIndex - 1),
+    });
+    void rendition.display(cfi).catch((error) => {
+      setMessage(errorMessage(error));
+    });
+  }
+
   function updateReaderSettings(next: Partial<ReaderSettings>) {
     setReaderSettings((current) => ({ ...current, ...next }));
   }
@@ -237,13 +305,38 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
         </div>
         <button
           type="button"
-          onClick={() => setSettingsOpen((open) => !open)}
+          onClick={() => {
+            setTocOpen((open) => !open);
+            setSettingsOpen(false);
+          }}
+          className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-neutral-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45"
+          title="Sumario"
+          disabled={tocItems.length === 0}
+          aria-expanded={tocOpen}
+        >
+          <ListTree size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setSettingsOpen((open) => !open);
+            setTocOpen(false);
+          }}
           className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-neutral-200 transition hover:bg-white/10"
           title="Configuracoes de leitura"
         >
           <Settings2 size={18} />
         </button>
       </header>
+
+      {tocOpen ? (
+        <TocPanel
+          items={tocItems}
+          currentIndex={currentTocIndex}
+          onSelect={goToTocItem}
+          onClose={() => setTocOpen(false)}
+        />
+      ) : null}
 
       {settingsOpen ? (
         <ReaderSettingsPanel
@@ -312,11 +405,12 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
       <footer className="grid min-h-20 shrink-0 grid-cols-[minmax(0,1fr)_minmax(18rem,2fr)_minmax(0,1fr)] items-center gap-5 border-t border-white/10 bg-black/25 px-7 py-3 text-sm text-neutral-300">
         <div className="min-w-0">
           <span className="block truncate font-medium text-neutral-100">
-            {book?.title ?? "Livro"}
+            Capítulo: {tocItems.length > 0 ? currentTocIndex + 1 : 1} /{" "}
+            {Math.max(1, tocItems.length)}
           </span>
           <span className="block truncate text-xs text-neutral-500">
-            {readerSettings.flow === "continuous" ? "Rolagem continua" : "Paginado"} ·{" "}
-            {readerSettings.spread === "double" ? "duas paginas" : "uma pagina"}
+            Páginas do capítulo: {chapterPageStats.currentPage} /{" "}
+            {chapterPageStats.totalPages}
           </span>
         </div>
         <label className="min-w-0">
@@ -336,7 +430,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
             min={0}
             max={Math.max(0, pageStats.totalPages - 1)}
             value={Math.max(0, pageStats.currentPage - 1)}
-            readOnly
+            onChange={(event) => goToPage(Number(event.target.value))}
             className="block w-full accent-amber-300"
             aria-label="Progresso de pagina do livro"
           />
@@ -364,6 +458,103 @@ function getViewerSize(viewer: HTMLDivElement) {
     width: Math.floor(bounds.width || viewer.clientWidth),
     height: Math.floor(bounds.height || viewer.clientHeight),
   };
+}
+
+function flattenToc(items: EpubTocItem[], depth = 0): ReaderTocItem[] {
+  return items.flatMap((item) => [
+    { ...item, depth },
+    ...flattenToc(item.subitems ?? [], depth + 1),
+  ]);
+}
+
+function chapterPageStatsFromLocation(location: EpubLocation) {
+  const currentPage = Math.max(1, location.start?.displayed?.page ?? 1);
+  const totalPages = Math.max(
+    currentPage,
+    location.start?.displayed?.total ?? currentPage,
+  );
+  return { currentPage, totalPages };
+}
+
+function currentTocIndexFromHref(
+  href: string | undefined,
+  items: ReaderTocItem[],
+  fallbackIndex: number,
+) {
+  if (!href || items.length === 0) return fallbackIndex;
+
+  const normalizedHref = normalizeReaderHref(href);
+  const exactIndex = items.findIndex(
+    (item) => normalizeReaderHref(item.href) === normalizedHref,
+  );
+  if (exactIndex >= 0) return exactIndex;
+
+  const normalizedFileHref = normalizedHref.split("#")[0];
+  const fileIndex = items.findIndex((item) =>
+    sameReaderHrefFile(normalizeReaderHref(item.href).split("#")[0], normalizedFileHref),
+  );
+  return fileIndex >= 0 ? fileIndex : fallbackIndex;
+}
+
+function sameReaderHrefFile(left: string, right: string) {
+  return left === right || left.endsWith(`/${right}`) || right.endsWith(`/${left}`);
+}
+
+function normalizeReaderHref(href: string) {
+  try {
+    return decodeURIComponent(href).split("?")[0].replace(/^\.?\//, "");
+  } catch {
+    return href.split("?")[0].replace(/^\.?\//, "");
+  }
+}
+
+type TocPanelProps = {
+  items: ReaderTocItem[];
+  currentIndex: number;
+  onSelect: (item: ReaderTocItem, index: number) => void;
+  onClose: () => void;
+};
+
+function TocPanel({ items, currentIndex, onSelect, onClose }: TocPanelProps) {
+  return (
+    <aside
+      className="absolute right-20 top-20 z-30 max-h-[calc(100vh-6rem)] w-96 overflow-hidden rounded-lg border border-white/10 bg-[#1f1d1a] text-sm text-neutral-100 shadow-2xl shadow-black/40"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="toc-title"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") onClose();
+      }}
+    >
+      <div className="border-b border-white/10 px-4 py-3">
+        <h2 id="toc-title" className="font-semibold">
+          Sumário
+        </h2>
+      </div>
+      <div className="max-h-[calc(100vh-11rem)] overflow-y-auto p-2">
+        {items.map((item, index) => {
+          const isCurrent = index === currentIndex;
+          return (
+            <button
+              key={`${item.href}-${index}`}
+              type="button"
+              onClick={() => onSelect(item, index)}
+              aria-current={isCurrent ? "location" : undefined}
+              className={`block w-full rounded-md px-3 py-2 text-left text-xs transition ${
+                isCurrent
+                  ? "bg-amber-300/15 text-amber-100"
+                  : "text-neutral-300 hover:bg-white/[0.07] hover:text-white"
+              }`}
+              style={{ paddingLeft: `${12 + item.depth * 16}px` }}
+              title={item.label}
+            >
+              <span className="line-clamp-2">{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </aside>
+  );
 }
 
 type ReaderSettingsPanelProps = {
