@@ -57,19 +57,13 @@ export type EpubManifestDto = {
   toc: TocItemDto[];
 };
 
-export type ResourceDto = {
-  href: string;
-  mediaType: string;
-  contents: string;
-};
-
 export type ReadingLocator = {
   bookId: string;
   href: string;
   spineIndex: number;
   progression: number;
   totalProgression: number;
-  cfi?: string;
+  cfi: string;
   cssSelector?: string;
   textSnippet?: string;
   displayPageIndex?: number;
@@ -120,18 +114,4 @@ export type SearchResultDto = {
   progression: number;
   totalProgression: number;
   snippet: string;
-};
-
-export type ReadingSettingsDto = {
-  id: string;
-  name: string;
-  fontFamily: string;
-  fontSize: number;
-  lineHeight: number;
-  margin: number;
-  paragraphSpacing: number;
-  theme: "light" | "dark" | "sepia" | "oled";
-  textAlign: "left" | "justify";
-  hyphenationEnabled: boolean;
-  ligaturesEnabled: boolean;
 };

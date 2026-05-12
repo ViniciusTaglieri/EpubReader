@@ -207,7 +207,7 @@ mod tests {
             spine_index: 0,
             progression: 0.2,
             total_progression: 0.2,
-            cfi: None,
+            cfi: "epubcfi(/6/2!/4/2/2)".to_string(),
             css_selector: None,
             text_snippet: None,
             display_page_index: Some(1),

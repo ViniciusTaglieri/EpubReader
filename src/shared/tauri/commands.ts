@@ -5,12 +5,9 @@ import type {
   BookDto,
   BookmarkDto,
   CollectionDto,
-  EpubManifestDto,
   HighlightDto,
   HighlightRangeDto,
   ReadingLocator,
-  ReadingSettingsDto,
-  ResourceDto,
   SearchResultDto
 } from "../types/books";
 import { normalizePickedEpubPaths } from "../../features/library/importPaths";
@@ -47,13 +44,8 @@ export const commands = {
     invoke<void>("remove_book_from_collection", { collectionId, bookId }),
   deleteCollection: (collectionId: string) =>
     invoke<void>("delete_collection", { collectionId }),
-  getBookManifest: (bookId: string) =>
-    invoke<EpubManifestDto>("get_book_manifest", { bookId }),
-  getBookRendition: (bookId: string) =>
-    invoke<ResourceDto>("get_book_rendition", { bookId }),
-  getSpineResource: (bookId: string, href: string) =>
-    invoke<ResourceDto>("get_spine_resource", { bookId, href }),
   getCover: (bookId: string) => invoke<number[]>("get_cover", { bookId }),
+  readBook: (bookId: string) => invoke<number[]>("read_book", { bookId }),
   saveProgress: (bookId: string, locator: ReadingLocator) =>
     invoke<void>("save_progress", { bookId, locator }),
   getProgress: (bookId: string) =>
@@ -75,11 +67,7 @@ export const commands = {
   updateHighlightNote: (highlightId: string, note: string) =>
     invoke<void>("update_highlight_note", { highlightId, note }),
   searchInBook: (bookId: string, query: string) =>
-    invoke<SearchResultDto[]>("search_in_book", { bookId, query }),
-  updateReadingSettings: (settings: ReadingSettingsDto) =>
-    invoke<void>("update_reading_settings", { settings }),
-  getReadingSettings: (settingsId: string) =>
-    invoke<ReadingSettingsDto | null>("get_reading_settings", { settingsId })
+    invoke<SearchResultDto[]>("search_in_book", { bookId, query })
 };
 
 export function errorMessage(error: unknown): string {
