@@ -1,13 +1,37 @@
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
+import {
+  ArrowLeft,
+  AlignJustify,
+  AlignLeft,
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  Columns2,
+  Loader2,
+  RotateCcw,
+  Settings2,
+  ScrollText,
+  Square,
+} from "lucide-react";
 import ePub from "epubjs";
 import { commands, errorMessage } from "../../shared/tauri/commands";
 import type { BookDetailDto, ReadingLocator } from "../../shared/types/books";
 import {
+  DEFAULT_READER_SETTINGS,
+  applyReaderSettings,
   locatorFromCfi,
+  loadReaderSettings,
   numbersToArrayBuffer,
+  pageStatsFromLocation,
+  readerShellColors,
+  saveReaderSettings,
   type EpubBook,
   type EpubLocation,
+  type ReaderFlow,
+  type ReaderSettings,
+  type ReaderSpread,
+  type ReaderTextAlign,
+  type ReaderTheme,
   type Rendition,
 } from "./epubCfiReader";
 
@@ -25,6 +49,15 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
   const [book, setBook] = useState<BookDetailDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
+    loadReaderSettings(),
+  );
+  const [pageStats, setPageStats] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    remainingPages: 0,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -54,19 +87,23 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
         await epub.open(bookData, "binary");
         if (cancelled) return;
 
+        const initialViewerSize = getViewerSize(viewerElement);
         const rendition = epub.renderTo(viewerElement, {
-          flow: "paginated",
-          width: "100%",
-          height: "100%",
-          spread: "none",
+          flow: readerSettings.flow === "continuous" ? "scrolled-doc" : "paginated",
+          width: initialViewerSize.width,
+          height: initialViewerSize.height,
+          gap: 0,
+          spread: readerSettings.spread === "double" ? "auto" : "none",
         });
         renditionRef.current = rendition;
+        applyReaderSettings(rendition, readerSettings);
 
         const handleRelocated = (location: EpubLocation) => {
           const cfi = location.start?.cfi;
           if (!cfi) return;
           const locator = locatorFromCfi(bookId, cfi, location, epub);
           latestLocatorRef.current = locator;
+          setPageStats(pageStatsFromLocation(location, epub, cfi));
           saveChainRef.current = saveChainRef.current
             .catch(() => undefined)
             .then(() =>
@@ -77,6 +114,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
         };
 
         rendition.on("relocated", handleRelocated);
+        await epub.locations?.generate?.(1600);
 
         try {
           await rendition.display(savedProgress?.cfi ?? undefined);
@@ -105,6 +143,44 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     };
   }, [bookId]);
 
+  useEffect(() => {
+    saveReaderSettings(readerSettings);
+    const rendition = renditionRef.current;
+    if (!rendition) return;
+    applyReaderSettings(rendition, readerSettings);
+    const handle = window.setTimeout(() => {
+      const cfi = latestLocatorRef.current?.cfi;
+      resizeRenditionToViewer(
+        rendition,
+        viewerRef.current,
+        cfi,
+      );
+      window.requestAnimationFrame(() => {
+        void rendition.display(cfi).catch(() => undefined);
+      });
+    }, 80);
+    return () => window.clearTimeout(handle);
+  }, [readerSettings]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    const resizeCurrentRendition = () => {
+      const rendition = renditionRef.current;
+      if (!rendition) return;
+      resizeRenditionToViewer(rendition, viewer, latestLocatorRef.current?.cfi);
+    };
+
+    resizeCurrentRendition();
+    const resizeObserver = new ResizeObserver(() => {
+      window.requestAnimationFrame(resizeCurrentRendition);
+    });
+    resizeObserver.observe(viewer);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
   async function flushAndBack() {
     const locator = latestLocatorRef.current;
     if (locator?.cfi) {
@@ -128,6 +204,18 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     void renditionRef.current?.next();
   }
 
+  function updateReaderSettings(next: Partial<ReaderSettings>) {
+    setReaderSettings((current) => ({ ...current, ...next }));
+  }
+
+  const totalProgressPercent =
+    pageStats.totalPages <= 1
+      ? 0
+      : Math.round(
+          ((pageStats.currentPage - 1) / Math.max(1, pageStats.totalPages - 1)) *
+            100,
+        );
+
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-[#151412] text-neutral-100">
       <header className="flex h-16 shrink-0 items-center gap-4 border-b border-white/10 bg-black/25 px-5">
@@ -147,7 +235,24 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
             {book?.author ?? "Leitor EPUB"}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setSettingsOpen((open) => !open)}
+          className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-neutral-200 transition hover:bg-white/10"
+          title="Configuracoes de leitura"
+        >
+          <Settings2 size={18} />
+        </button>
       </header>
+
+      {settingsOpen ? (
+        <ReaderSettingsPanel
+          settings={readerSettings}
+          onChange={updateReaderSettings}
+          onReset={() => setReaderSettings(DEFAULT_READER_SETTINGS)}
+          onClose={() => setSettingsOpen(false)}
+        />
+      ) : null}
 
       <section className="relative min-h-0 flex-1 overflow-hidden bg-black/55 p-5">
         <button
@@ -159,13 +264,32 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           <ChevronLeft size={24} />
         </button>
 
-        <div className="mx-auto h-full max-w-4xl overflow-hidden rounded-lg border border-white/10 bg-[#f7f0e6] shadow-2xl shadow-black/30">
+        <div
+          className="mx-auto h-full overflow-hidden rounded-lg border border-white/10 bg-[#f7f0e6] shadow-2xl shadow-black/30"
+          style={{
+            maxWidth: readerSettings.spread === "double" ? "72rem" : "56rem",
+          }}
+        >
           {message ? (
             <div className="grid h-full place-items-center p-8 text-center text-sm text-red-200">
               {message}
             </div>
           ) : (
-            <div ref={viewerRef} className="h-full w-full" />
+            <div
+              className="grid h-full w-full place-items-center overflow-hidden"
+              style={{
+                backgroundColor: readerShellColors(readerSettings.theme).background,
+              }}
+            >
+              <div
+                ref={viewerRef}
+                className="overflow-hidden"
+                style={{
+                  width: `max(1px, calc(100% - ${readerSettings.margin * 2}px))`,
+                  height: `max(1px, calc(100% - ${readerSettings.margin * 2}px))`,
+                }}
+              />
+            </div>
           )}
         </div>
 
@@ -184,6 +308,319 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           </div>
         ) : null}
       </section>
+
+      <footer className="grid min-h-20 shrink-0 grid-cols-[minmax(0,1fr)_minmax(18rem,2fr)_minmax(0,1fr)] items-center gap-5 border-t border-white/10 bg-black/25 px-7 py-3 text-sm text-neutral-300">
+        <div className="min-w-0">
+          <span className="block truncate font-medium text-neutral-100">
+            {book?.title ?? "Livro"}
+          </span>
+          <span className="block truncate text-xs text-neutral-500">
+            {readerSettings.flow === "continuous" ? "Rolagem continua" : "Paginado"} ·{" "}
+            {readerSettings.spread === "double" ? "duas paginas" : "uma pagina"}
+          </span>
+        </div>
+        <label className="min-w-0">
+          <span className="mb-2 flex items-center justify-center gap-2 text-xs text-neutral-400">
+            <span>Página</span>
+            <span className="text-neutral-200">
+              {pageStats.currentPage} / {pageStats.totalPages}
+            </span>
+            <span>
+              {pageStats.remainingPages === 1
+                ? "resta 1 página"
+                : `restam ${pageStats.remainingPages} páginas`}
+            </span>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={Math.max(0, pageStats.totalPages - 1)}
+            value={Math.max(0, pageStats.currentPage - 1)}
+            readOnly
+            className="block w-full accent-amber-300"
+            aria-label="Progresso de pagina do livro"
+          />
+        </label>
+        <span className="text-right">{totalProgressPercent}% do livro</span>
+      </footer>
     </main>
+  );
+}
+
+function resizeRenditionToViewer(
+  rendition: Rendition,
+  viewer: HTMLDivElement | null,
+  cfi?: string,
+) {
+  if (!viewer) return;
+  const { width, height } = getViewerSize(viewer);
+  if (width <= 0 || height <= 0) return;
+  rendition.resize?.(width, height, cfi);
+}
+
+function getViewerSize(viewer: HTMLDivElement) {
+  const bounds = viewer.getBoundingClientRect();
+  return {
+    width: Math.floor(bounds.width || viewer.clientWidth),
+    height: Math.floor(bounds.height || viewer.clientHeight),
+  };
+}
+
+type ReaderSettingsPanelProps = {
+  settings: ReaderSettings;
+  onChange: (settings: Partial<ReaderSettings>) => void;
+  onReset: () => void;
+  onClose: () => void;
+};
+
+function ReaderSettingsPanel({
+  settings,
+  onChange,
+  onReset,
+  onClose,
+}: ReaderSettingsPanelProps) {
+  return (
+    <aside
+      className="absolute right-5 top-20 z-30 max-h-[calc(100vh-6rem)] w-80 overflow-y-auto rounded-lg border border-white/10 bg-[#1f1d1a] p-4 text-sm text-neutral-100 shadow-2xl shadow-black/40"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="reading-settings-title"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") onClose();
+      }}
+    >
+      <div className="mb-4 flex items-center justify-between">
+        <h2 id="reading-settings-title" className="font-semibold">
+          Configurações de Exibição
+        </h2>
+        <button
+          type="button"
+          onClick={onReset}
+          className="grid h-8 w-8 place-items-center rounded-md border border-white/10 text-neutral-300 transition hover:bg-white/10 hover:text-white"
+          title="Redefinir ajustes de leitura"
+          aria-label="Redefinir ajustes de leitura"
+        >
+          <RotateCcw size={15} />
+        </button>
+      </div>
+
+      <label className="block">
+        <span className="text-xs text-neutral-400">Fonte</span>
+        <select
+          value={settings.fontFamily}
+          onChange={(event) => onChange({ fontFamily: event.target.value })}
+          className="mt-1 h-10 w-full rounded-md border border-white/10 bg-neutral-900 px-3 outline-none"
+        >
+          <option value="Georgia, serif">Georgia</option>
+          <option value="Lora, Georgia, serif">Lora</option>
+          <option value="Arial, sans-serif">Arial</option>
+          <option value="Verdana, sans-serif">Verdana</option>
+          <option value="OpenDyslexic, Arial, sans-serif">OpenDyslexic</option>
+        </select>
+      </label>
+
+      <SettingSlider
+        label="Tamanho da fonte"
+        value={settings.fontSize}
+        min={12}
+        max={34}
+        step={1}
+        suffix="px"
+        onChange={(fontSize) => onChange({ fontSize })}
+      />
+      <SettingSlider
+        label="Margem"
+        value={settings.margin}
+        min={0}
+        max={96}
+        step={4}
+        suffix="px"
+        onChange={(margin) => onChange({ margin })}
+      />
+      <SettingSlider
+        label="Espaçamento entre linhas"
+        value={settings.lineHeight}
+        min={1.1}
+        max={2.2}
+        step={0.05}
+        onChange={(lineHeight) => onChange({ lineHeight })}
+      />
+      <SettingSlider
+        label="Espaçamento de parágrafo"
+        value={settings.paragraphSpacing}
+        min={0}
+        max={2.4}
+        step={0.05}
+        suffix="em"
+        onChange={(paragraphSpacing) => onChange({ paragraphSpacing })}
+      />
+
+      <ThemeButtons
+        value={settings.theme}
+        onChange={(theme) => onChange({ theme })}
+      />
+      <SegmentedButtons<ReaderTextAlign>
+        label="Alinhamento"
+        value={settings.textAlign}
+        options={[
+          ["left", "Esquerda", AlignLeft],
+          ["justify", "Justificado", AlignJustify],
+        ]}
+        onChange={(textAlign) => onChange({ textAlign })}
+      />
+      <SegmentedButtons<ReaderFlow>
+        label="Modo de leitura"
+        value={settings.flow}
+        options={[
+          ["paginated", "Paginado", BookOpen],
+          ["continuous", "Rolagem continua", ScrollText],
+        ]}
+        onChange={(flow) => onChange({ flow })}
+      />
+      <SegmentedButtons<ReaderSpread>
+        label="Modo"
+        value={settings.spread}
+        options={[
+          ["single", "Uma pagina", Square],
+          ["double", "Duas paginas", Columns2],
+        ]}
+        disabled={settings.flow === "continuous"}
+        onChange={(spread) => onChange({ spread })}
+      />
+    </aside>
+  );
+}
+
+function ThemeButtons({
+  value,
+  onChange,
+}: {
+  value: ReaderTheme;
+  onChange: (theme: ReaderTheme) => void;
+}) {
+  const options: Array<[ReaderTheme, string]> = [
+    ["light", "Claro"],
+    ["dark", "Escuro"],
+    ["sepia", "Sepia"],
+    ["oled", "OLED"],
+  ];
+
+  return (
+    <div className="mt-4">
+      <span className="text-xs text-neutral-400">Tema</span>
+      <div className="mt-2 grid grid-cols-4 gap-2">
+        {options.map(([theme, label]) => {
+          const colors = readerShellColors(theme);
+          const isSelected = value === theme;
+
+          return (
+            <button
+              key={theme}
+              type="button"
+              onClick={() => onChange(theme)}
+              aria-pressed={isSelected}
+              className={`rounded-md border p-2 text-center transition ${
+                isSelected
+                  ? "border-amber-300 bg-amber-300/10 text-amber-100"
+                  : "border-white/10 bg-white/[0.03] text-neutral-300 hover:bg-white/[0.07]"
+              }`}
+              title={label}
+            >
+              <span
+                className="mx-auto block h-7 w-7 rounded-full border border-white/20"
+                style={{
+                  backgroundColor: colors.background,
+                  boxShadow: `inset 0 0 0 8px ${colors.ink}`,
+                }}
+              />
+              <span className="mt-1 block text-[11px]">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SegmentedButtons<TValue extends string>({
+  label,
+  value,
+  options,
+  disabled = false,
+  onChange,
+}: {
+  label: string;
+  value: TValue;
+  options: Array<[TValue, string, ComponentType<{ size?: number }>]>;
+  disabled?: boolean;
+  onChange: (value: TValue) => void;
+}) {
+  return (
+    <div className="mt-4">
+      <span className="text-xs text-neutral-400">{label}</span>
+      <div
+        className={`mt-2 grid gap-2 ${options.length > 2 ? "grid-cols-3" : "grid-cols-2"}`}
+      >
+        {options.map(([optionValue, optionLabel, Icon]) => {
+          const isSelected = value === optionValue;
+          return (
+            <button
+              key={optionValue}
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(optionValue)}
+              aria-pressed={isSelected}
+              className={`flex min-h-10 items-center justify-center gap-2 rounded-md border px-3 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                isSelected
+                  ? "border-amber-300 bg-amber-300/15 text-amber-100"
+                  : "border-white/10 bg-white/[0.03] text-neutral-300 hover:bg-white/[0.07]"
+              }`}
+            >
+              <Icon size={15} />
+              {optionLabel}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SettingSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  suffix = "",
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  suffix?: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="mt-4 block">
+      <span className="flex items-center justify-between text-xs text-neutral-400">
+        <span>{label}</span>
+        <span className="text-neutral-200">
+          {Number.isInteger(value) ? value : value.toFixed(2)}
+          {suffix}
+        </span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="mt-2 w-full accent-amber-300"
+      />
+    </label>
   );
 }
