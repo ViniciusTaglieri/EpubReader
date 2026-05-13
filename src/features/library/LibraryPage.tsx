@@ -26,6 +26,7 @@ import {
 import { ConfirmDialog } from "../../shared/components/ConfirmDialog";
 import type { BookDto, CollectionDto } from "../../shared/types/books";
 import { LibrarySidebar } from "./LibrarySidebar";
+import { LibrarySettingsPage } from "./LibrarySettingsPage";
 import { LibraryToolbar } from "./LibraryToolbar";
 import type { LibrarySection, LibraryView } from "./libraryTypes";
 import { useBookCovers, type CoverMap } from "./useBookCovers";
@@ -370,6 +371,16 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
         <div className="flex-1 overflow-y-auto p-7">
           {isLoading ? (
             <EmptyState title="Carregando biblioteca..." />
+          ) : activeSection === "settings" ? (
+            <LibrarySettingsPage
+              books={books}
+              collections={collections}
+              view={view}
+              filters={filters}
+              sidebarCollapsed={sidebarCollapsed}
+              onViewChange={setView}
+              onSidebarCollapsedChange={setSidebarCollapsed}
+            />
           ) : activeSection === "collections" && !selectedCollectionId ? (
             <CollectionsOverview
               collections={collections}
@@ -388,13 +399,11 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
                   : "space-y-3"
               }
             >
-              {activeSection === "settings" ? null : (
-                <ImportButton
-                  onImport={importBooks}
-                  disabled={isImporting}
-                  view={view}
-                />
-              )}
+              <ImportButton
+                onImport={importBooks}
+                disabled={isImporting}
+                view={view}
+              />
               {visibleBooks.map((book) => (
                 <BookCard
                   key={book.id}

@@ -2,6 +2,8 @@ import {
   BookOpen,
   Check,
   ChevronRight,
+  Clock3,
+  FileText,
   FolderPlus,
   MoreVertical,
   Star,
@@ -45,14 +47,14 @@ export function BookCard({
   if (view === "list") {
     return (
       <article
-        className={`group relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-lg border border-white/10 bg-white/[0.045] p-3 transition hover:border-amber-300/40 hover:bg-white/[0.07] ${
+        className={`group relative grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-4 rounded-lg border border-white/10 bg-white/[0.045] p-3 transition hover:border-amber-300/40 hover:bg-white/[0.07] ${
           menuOpen ? "z-[80]" : "z-0"
         }`}
       >
         <button
           type="button"
           onClick={() => onOpen(book)}
-          className="grid min-w-0 grid-cols-[4.5rem_1fr] items-center gap-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+          className="grid min-w-0 grid-cols-[4.75rem_minmax(0,1.25fr)_minmax(18rem,1fr)] items-center gap-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 max-xl:grid-cols-[4.75rem_1fr]"
         >
           <div className="relative aspect-[2/3] overflow-hidden rounded bg-neutral-900">
             {coverUrl ? (
@@ -69,18 +71,52 @@ export function BookCard({
           </div>
 
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold text-white">
-              {book.title}
-            </h3>
+            <div className="flex min-w-0 items-center gap-2">
+              <h3 className="truncate text-sm font-semibold text-white">
+                {book.title}
+              </h3>
+              {book.isFavorite ? (
+                <Star
+                  size={14}
+                  className="shrink-0 fill-amber-300 text-amber-300"
+                  aria-label="Favorito"
+                />
+              ) : null}
+            </div>
+            {book.subtitle ? (
+              <p className="mt-0.5 truncate text-xs text-neutral-400">
+                {book.subtitle}
+              </p>
+            ) : null}
             <p className="mt-1 truncate text-xs text-neutral-300">
               {book.author ?? "Autor desconhecido"}
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-400">
-              <span>{labelForStatus(book.readingStatus)}</span>
-              <span>{formatTextLength(book.textLength)}</span>
-              <span>{progress}%</span>
+            <div className="mt-3 flex items-center gap-3">
+              <StatusPill status={book.readingStatus} />
+              <span className="inline-flex items-center gap-1 text-xs text-neutral-400">
+                <FileText size={13} />
+                {formatPageEstimate(book.textLength)}
+              </span>
+              <span className="inline-flex items-center gap-1 text-xs text-neutral-400">
+                <Clock3 size={13} />
+                {formatDate(book.lastOpenedAt ?? book.importedAt)}
+              </span>
             </div>
-            <MetadataLine book={book} />
+            <div className="mt-3 flex items-center gap-2">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/15">
+                <div
+                  className="h-full rounded-full bg-amber-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <span className="w-9 text-right text-xs text-neutral-300">
+                {progress}%
+              </span>
+            </div>
+          </div>
+
+          <div className="min-w-0 max-xl:hidden">
+            <MetadataLine book={book} detailed />
           </div>
         </button>
 
@@ -324,7 +360,7 @@ function BookActionsMenu({
           </MenuButton>
           <MenuButton onClick={() => setCollectionsOpen((current) => !current)}>
             <FolderPlus size={14} />
-            <span className="flex-1">Colecoes</span>
+            <span className="flex-1">Coleções</span>
             <ChevronRight
               size={14}
               className={`transition ${collectionsOpen ? "rotate-180 text-amber-300" : ""}`}
@@ -341,7 +377,7 @@ function BookActionsMenu({
               } ${submenuPlacement.vertical === "down" ? "top-12" : "bottom-0"}`}
             >
               <p className="px-2 pb-1 text-[11px] uppercase tracking-wide text-neutral-500">
-                Colecoes
+                Coleções
               </p>
               <MenuButton
                 onClick={() => runAction(() => onCreateCollection(book))}
@@ -409,26 +445,51 @@ function MenuButton({
   );
 }
 
-function MetadataLine({ book }: { book: BookDto }) {
+function StatusPill({ status }: { status: BookDto["readingStatus"] }) {
+  const classes =
+    status === "finished"
+      ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-100"
+      : status === "reading"
+        ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
+        : "border-white/10 bg-white/[0.04] text-neutral-300";
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[11px] ${classes}`}>
+      {labelForStatus(status)}
+    </span>
+  );
+}
+
+function MetadataLine({
+  book,
+  detailed = false,
+}: {
+  book: BookDto;
+  detailed?: boolean;
+}) {
   const chips = [
-    book.language ? book.language.toUpperCase() : "-",
-    book.publisher ?? "-",
-    book.publishedAt ? formatDate(book.publishedAt) : "-",
-    book.subjects[0] ?? "-",
+    ["Idioma", book.language ? book.language.toUpperCase() : "-"],
+    ["Editora", book.publisher ?? "-"],
+    ["Publicado", book.publishedAt ? formatDate(book.publishedAt) : "-"],
+    ["Tags", book.subjects.slice(0, 2).join(", ") || "-"],
   ];
 
   return (
     <div
-      className="mt-2 grid h-11 grid-cols-2 gap-1 overflow-hidden"
+      className={`grid gap-1 overflow-hidden ${
+        detailed ? "grid-cols-2" : "mt-2 h-11 grid-cols-2"
+      }`}
       title={metadataTitle(book)}
     >
-      {chips.map((chip, index) => (
+      {chips.map(([label, chip]) => (
         <span
-          key={`${chip}-${index}`}
-          className={`truncate rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] leading-4 ${
+          key={label}
+          className={`min-w-0 truncate rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] leading-4 ${
             chip === "-" ? "text-neutral-600" : "text-neutral-400"
           }`}
         >
+          {detailed && chip !== "-" ? (
+            <span className="text-neutral-500">{label}: </span>
+          ) : null}
           {chip}
         </span>
       ))}
@@ -446,6 +507,12 @@ function formatTextLength(textLength: number) {
   if (!textLength) return "Tamanho ainda não calculado";
   const pages = Math.max(1, Math.round(textLength / 1800));
   return `${pages}`;
+}
+
+function formatPageEstimate(textLength: number) {
+  if (!textLength) return "Tamanho pendente";
+  const pages = Math.max(1, Math.round(textLength / 1800));
+  return pages === 1 ? "1 página" : `${pages} páginas`;
 }
 
 function formatDate(value: string) {

@@ -119,9 +119,9 @@ export function LibraryToolbar({
           }
           className="h-10 rounded-md border border-white/10 bg-neutral-900 px-3 text-sm"
         >
-          <option value="last_opened">Ultimo aberto</option>
-          <option value="published_at">Data de publicacao</option>
-          <option value="title">Titulo</option>
+          <option value="last_opened">Último aberto</option>
+          <option value="published_at">Data de publicação</option>
+          <option value="title">Título</option>
           <option value="author">Autor</option>
           <option value="progress">Progresso</option>
           <option value="size">Tamanho do livro</option>
@@ -143,8 +143,8 @@ function ViewModeToggle({
     <div className="flex h-10 overflow-hidden rounded-md border border-white/10 bg-neutral-900">
       <button
         type="button"
-        title="Visualizacao em grid"
-        aria-label="Visualizacao em grid"
+        title="Visualização em grade"
+        aria-label="Visualização em grade"
         aria-pressed={value === "grid"}
         onClick={() => onChange("grid")}
         className={`grid w-10 place-items-center transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 ${
@@ -157,8 +157,8 @@ function ViewModeToggle({
       </button>
       <button
         type="button"
-        title="Visualizacao em lista"
-        aria-label="Visualizacao em lista"
+        title="Visualização em lista"
+        aria-label="Visualização em lista"
         aria-pressed={value === "list"}
         onClick={() => onChange("list")}
         className={`grid w-10 place-items-center border-l border-white/10 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 ${
@@ -174,7 +174,7 @@ function ViewModeToggle({
 }
 
 function sectionTitle(section: LibrarySection, collection?: CollectionDto) {
-  if (section === "collections") return collection?.name ?? "Colecoes";
+  if (section === "collections") return collection?.name ?? "Coleções";
   if (section === "settings") return "Configurações";
   return "Biblioteca";
 }
@@ -186,8 +186,8 @@ function sectionDescription(
   if (section === "collections") {
     return collection
       ? "Livros organizados nesta coleção."
-      : "Crie colecoes e organize seus EPUBs por tema, estudo ou prioridade.";
+      : "Crie coleções e organize seus EPUBs por tema, estudo ou prioridade.";
   }
-  if (section === "settings") return "Ajustes gerais serao adicionados aqui.";
+  if (section === "settings") return "Preferências, manutenção e dados locais do app.";
   return "EPUBs importados para o armazenamento local do app.";
 }
