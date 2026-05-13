@@ -25,6 +25,7 @@ pub fn import_epub(path: String, state: State<'_, AppState>) -> Result<BookDto, 
             "Selecione um arquivo .epub",
         ));
     }
+    crate::epub::validation::validate_epub_source(&source)?;
 
     let file_hash = sha256_file(&source)?;
     let connection = state.db.connect()?;
