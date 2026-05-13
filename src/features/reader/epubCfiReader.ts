@@ -33,7 +33,13 @@ export type Rendition = {
   display: (target?: string) => Promise<unknown>;
   prev: () => Promise<unknown>;
   next: () => Promise<unknown>;
-  on: (event: "relocated", handler: (location: EpubLocation) => void) => void;
+  on: {
+    (event: "relocated", handler: (location: EpubLocation) => void): void;
+    (
+      event: "rendered",
+      handler: (section: unknown, view?: { document?: Document }) => void,
+    ): void;
+  };
   resize?: (width?: number | string, height?: number | string, cfi?: string) => void;
   flow?: (flow: "paginated" | "scrolled-doc") => void;
   spread?: (spread: "none" | "auto") => void;
@@ -189,6 +195,28 @@ export function applyReaderSettings(rendition: Rendition, settings: ReaderSettin
 
 export function readerShellColors(theme: ReaderTheme) {
   return themePalette(theme);
+}
+
+const UNSAFE_EPUB_SELECTOR = "script, iframe, object, embed, form";
+const UNSAFE_EPUB_PROTOCOL = /^(https?:|file:|javascript:|data:text\/html)/i;
+
+export function sanitizeRenderedEpubDocument(doc: Document) {
+  doc.querySelectorAll(UNSAFE_EPUB_SELECTOR).forEach((node) => node.remove());
+
+  doc.querySelectorAll("*").forEach((node) => {
+    for (const attribute of Array.from(node.attributes)) {
+      if (attribute.name.toLowerCase().startsWith("on")) {
+        node.removeAttribute(attribute.name);
+      }
+    }
+  });
+
+  doc.querySelectorAll<HTMLElement>("[href]").forEach((node) => {
+    const href = node.getAttribute("href") ?? "";
+    if (UNSAFE_EPUB_PROTOCOL.test(href.trim())) {
+      node.setAttribute("href", "#");
+    }
+  });
 }
 
 export function pageStatsFromLocation(

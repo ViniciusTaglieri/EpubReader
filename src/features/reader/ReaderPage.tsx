@@ -25,6 +25,7 @@ import {
   numbersToArrayBuffer,
   pageStatsFromLocation,
   readerShellColors,
+  sanitizeRenderedEpubDocument,
   saveReaderSettings,
   type EpubBook,
   type EpubLocation,
@@ -146,6 +147,12 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
         };
 
         rendition.on("relocated", handleRelocated);
+        rendition.on("rendered", (_section, view) => {
+          const renderedDocument = view?.document;
+          if (renderedDocument) {
+            sanitizeRenderedEpubDocument(renderedDocument);
+          }
+        });
         await epub.locations?.generate?.(1600);
 
         try {

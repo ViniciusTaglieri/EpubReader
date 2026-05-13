@@ -3,6 +3,7 @@ import {
   DEFAULT_READER_SETTINGS,
   normalizeReaderSettings,
   pageStatsFromLocation,
+  sanitizeRenderedEpubDocument,
   type EpubBook,
 } from "./epubCfiReader";
 
@@ -46,5 +47,29 @@ describe("epubCfiReader", () => {
       totalPages: 20,
       remainingPages: 13,
     });
+  });
+
+  it("removes active content from rendered epub documents", () => {
+    document.body.innerHTML = `
+      <script>alert("x")</script>
+      <iframe src="https://example.com"></iframe>
+      <form><input /></form>
+      <a href="javascript:alert(1)" onclick="alert(2)">bad</a>
+      <a href="https://example.com">external</a>
+      <a href="chapter.xhtml">internal</a>
+    `;
+
+    sanitizeRenderedEpubDocument(document);
+
+    expect(document.querySelector("script")).toBeNull();
+    expect(document.querySelector("iframe")).toBeNull();
+    expect(document.querySelector("form")).toBeNull();
+    expect(document.querySelector("[onclick]")).toBeNull();
+    expect(document.querySelectorAll("a")[0]).toHaveAttribute("href", "#");
+    expect(document.querySelectorAll("a")[1]).toHaveAttribute("href", "#");
+    expect(document.querySelectorAll("a")[2]).toHaveAttribute(
+      "href",
+      "chapter.xhtml",
+    );
   });
 });
