@@ -11,13 +11,13 @@ pub fn validate_epub_source(path: &Path) -> Result<(), AppError> {
     if !metadata.is_file() {
         return Err(AppError::new(
             "invalid_file",
-            "Selecione um arquivo EPUB valido.",
+            "Selecione um arquivo EPUB válido.",
         ));
     }
     if metadata.len() == 0 || metadata.len() > MAX_EPUB_BYTES {
         return Err(AppError::new(
             "invalid_epub_size",
-            "O arquivo EPUB esta vazio ou e grande demais para importacao segura.",
+            "O arquivo EPUB está vazio ou é grande demais para importação segura.",
         ));
     }
     Ok(())
@@ -31,13 +31,13 @@ pub fn validate_zip_entry_limits(
     if entries > MAX_ZIP_ENTRIES {
         return Err(AppError::new(
             "epub_too_many_files",
-            "O EPUB contem arquivos demais e nao pode ser importado com seguranca.",
+            "O EPUB contém arquivos demais e não pode ser importado com segurança.",
         ));
     }
     if entry_uncompressed > MAX_SINGLE_ENTRY_BYTES {
         return Err(AppError::new(
             "epub_entry_too_large",
-            "Um arquivo interno do EPUB e grande demais.",
+            "Um arquivo interno do EPUB é grande demais.",
         ));
     }
     if total_uncompressed > MAX_EXTRACTED_BYTES {

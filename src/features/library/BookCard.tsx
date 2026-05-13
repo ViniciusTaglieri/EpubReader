@@ -294,8 +294,8 @@ function BookActionsMenu({
       <button
         ref={menuButtonRef}
         type="button"
-        title="Acoes do livro"
-        aria-label="Acoes do livro"
+        title="Ações do livro"
+        aria-label="Ações do livro"
         onClick={(event) => {
           event.stopPropagation();
           onOpenChange(!open);
@@ -347,7 +347,7 @@ function BookActionsMenu({
                 onClick={() => runAction(() => onCreateCollection(book))}
               >
                 <FolderPlus size={14} />
-                Criar colecao com este livro
+                Criar coleção com este livro
               </MenuButton>
               {collections.map((collection) => {
                 const selected = collection.bookIds.includes(book.id);
@@ -369,7 +369,7 @@ function BookActionsMenu({
               })}
               {!collections.length ? (
                 <p className="px-2 py-2 text-neutral-500">
-                  Nenhuma colecao criada.
+                  Nenhuma coleção criada.
                 </p>
               ) : null}
             </div>
@@ -437,13 +437,13 @@ function MetadataLine({ book }: { book: BookDto }) {
 }
 
 function labelForStatus(status: BookDto["readingStatus"]) {
-  if (status === "finished") return "Concluido";
+  if (status === "finished") return "Concluído";
   if (status === "reading") return "Lendo";
-  return "Não Iniciado";
+  return "Não iniciado";
 }
 
 function formatTextLength(textLength: number) {
-  if (!textLength) return "Texto nao estimado";
+  if (!textLength) return "Tamanho ainda não calculado";
   const pages = Math.max(1, Math.round(textLength / 1800));
   return `${pages}`;
 }

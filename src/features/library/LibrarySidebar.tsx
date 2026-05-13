@@ -97,7 +97,7 @@ export function LibrarySidebar({
           : null}
         <SideItem
           icon={<Settings size={22} />}
-          label="Configuracoes"
+          label="Configurações"
           collapsed={collapsed}
           active={activeSection === "settings"}
           onClick={onOpenSettings}

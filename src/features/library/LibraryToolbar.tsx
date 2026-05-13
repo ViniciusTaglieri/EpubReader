@@ -41,7 +41,7 @@ export function LibraryToolbar({
               onClick={() => onEditCollection(selectedCollection)}
               className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-xs text-neutral-200 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
             >
-              Editar colecao
+              Editar coleção
             </button>
             <button
               type="button"
@@ -105,7 +105,7 @@ export function LibraryToolbar({
         >
           <option value="all">Todos</option>
           <option value="favorites">Favoritos</option>
-          <option value="unread">Não Iniciados</option>
+          <option value="unread">Não iniciados</option>
           <option value="reading">Lendo</option>
           <option value="finished">Finalizados</option>
         </select>
@@ -175,7 +175,7 @@ function ViewModeToggle({
 
 function sectionTitle(section: LibrarySection, collection?: CollectionDto) {
   if (section === "collections") return collection?.name ?? "Colecoes";
-  if (section === "settings") return "Configuracoes";
+  if (section === "settings") return "Configurações";
   return "Biblioteca";
 }
 
@@ -185,7 +185,7 @@ function sectionDescription(
 ) {
   if (section === "collections") {
     return collection
-      ? "Livros organizados nesta colecao."
+      ? "Livros organizados nesta coleção."
       : "Crie colecoes e organize seus EPUBs por tema, estudo ou prioridade.";
   }
   if (section === "settings") return "Ajustes gerais serao adicionados aqui.";

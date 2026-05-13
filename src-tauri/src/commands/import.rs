@@ -75,7 +75,7 @@ pub fn import_epub(path: String, state: State<'_, AppState>) -> Result<BookDto, 
         title: parsed
             .metadata
             .title
-            .unwrap_or_else(|| "Sem titulo".to_string()),
+            .unwrap_or_else(|| "Sem título".to_string()),
         subtitle: parsed.metadata.subtitle,
         author: parsed.metadata.author,
         publisher: parsed.metadata.publisher,

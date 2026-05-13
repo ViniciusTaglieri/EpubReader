@@ -11,7 +11,7 @@ use tauri::State;
 pub fn get_cover(book_id: String, state: State<'_, AppState>) -> Result<Vec<u8>, AppError> {
     let connection = state.db.connect()?;
     let book = books::get_book(&connection, &book_id)?
-        .ok_or_else(|| AppError::new("book_not_found", "Livro nao encontrado"))?;
+        .ok_or_else(|| AppError::new("book_not_found", "Livro não encontrado"))?;
     let Some(path) = book.cover_path else {
         return Ok(Vec::new());
     };
@@ -22,7 +22,7 @@ pub fn get_cover(book_id: String, state: State<'_, AppState>) -> Result<Vec<u8>,
 pub fn read_book(book_id: String, state: State<'_, AppState>) -> Result<Vec<u8>, AppError> {
     let connection = state.db.connect()?;
     let book = books::get_book(&connection, &book_id)?
-        .ok_or_else(|| AppError::new("book_not_found", "Livro nao encontrado"))?;
+        .ok_or_else(|| AppError::new("book_not_found", "Livro não encontrado"))?;
     Ok(std::fs::read(book.file_path)?)
 }
 
@@ -65,7 +65,7 @@ pub fn search_in_book(
 ) -> Result<Vec<SearchResultDto>, AppError> {
     let connection = state.db.connect()?;
     let book = books::get_book(&connection, &book_id)?
-        .ok_or_else(|| AppError::new("book_not_found", "Livro nao encontrado"))?;
+        .ok_or_else(|| AppError::new("book_not_found", "Livro não encontrado"))?;
     let parsed = parse_epub(book.file_path.as_ref())?;
     let needle = query.to_lowercase();
     if needle.trim().is_empty() {

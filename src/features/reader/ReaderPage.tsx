@@ -323,7 +323,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
             setSettingsOpen(false);
           }}
           className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-neutral-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45"
-          title="Sumario"
+          title="Sumário"
           disabled={tocItems.length === 0}
           aria-expanded={tocOpen}
         >
@@ -336,7 +336,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
             setTocOpen(false);
           }}
           className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-neutral-200 transition hover:bg-white/10"
-          title="Configuracoes de leitura"
+          title="Configurações de leitura"
         >
           <Settings2 size={18} />
         </button>
@@ -365,7 +365,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           type="button"
           onClick={previousPage}
           className="absolute left-5 top-1/2 z-10 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-black/35 text-neutral-200 transition hover:bg-black/55"
-          title="Pagina anterior"
+          title="Página anterior"
         >
           <ChevronLeft size={24} />
         </button>
@@ -403,7 +403,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           type="button"
           onClick={nextPage}
           className="absolute right-5 top-1/2 z-10 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-black/35 text-neutral-200 transition hover:bg-black/55"
-          title="Proxima pagina"
+          title="Próxima página"
         >
           <ChevronRight size={24} />
         </button>
@@ -445,7 +445,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
             value={Math.max(0, pageStats.currentPage - 1)}
             onChange={(event) => goToPage(Number(event.target.value))}
             className="block w-full accent-amber-300"
-            aria-label="Progresso de pagina do livro"
+            aria-label="Progresso de página do livro"
           />
         </label>
         <span className="text-right">{totalProgressPercent}% do livro</span>
@@ -677,7 +677,7 @@ function ReaderSettingsPanel({
         value={settings.flow}
         options={[
           ["paginated", "Paginado", BookOpen],
-          ["continuous", "Rolagem continua", ScrollText],
+          ["continuous", "Rolagem contínua", ScrollText],
         ]}
         onChange={(flow) => onChange({ flow })}
       />
@@ -685,8 +685,8 @@ function ReaderSettingsPanel({
         label="Modo"
         value={settings.spread}
         options={[
-          ["single", "Uma pagina", Square],
-          ["double", "Duas paginas", Columns2],
+          ["single", "Uma página", Square],
+          ["double", "Duas páginas", Columns2],
         ]}
         disabled={settings.flow === "continuous"}
         onChange={(spread) => onChange({ spread })}

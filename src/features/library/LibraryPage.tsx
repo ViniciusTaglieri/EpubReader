@@ -154,7 +154,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   async function importBooks(paths: string[]) {
     const uniquePaths = Array.from(new Set(paths));
     if (!uniquePaths.length) {
-      showMessage("Selecione ou arraste arquivos EPUB validos.", "warning");
+      showMessage("Selecione ou arraste arquivos EPUB válidos.", "warning");
       return;
     }
 
@@ -244,7 +244,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   async function saveCollection() {
     const name = collectionName.trim();
     if (!name) {
-      showMessage("Informe um nome para a colecao.", "warning");
+      showMessage("Informe um nome para a coleção.", "warning");
       return;
     }
     try {
@@ -257,7 +257,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
         await refreshCollections();
         setSelectedCollectionId(collection.id);
         setCollectionDialogOpen(false);
-        showMessage(`Colecao "${collection.name}" atualizada.`, "success");
+        showMessage(`Coleção "${collection.name}" atualizada.`, "success");
         return;
       }
 
@@ -269,7 +269,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
       setActiveSection("collections");
       setSelectedCollectionId(collection.id);
       setCollectionDialogOpen(false);
-      showMessage(`Colecao "${collection.name}" criada.`, "success");
+      showMessage(`Coleção "${collection.name}" criada.`, "success");
     } catch (error) {
       showMessage(errorMessage(error), "error");
     }
@@ -283,7 +283,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
         setSelectedCollectionId(null);
       }
       setActiveSection("collections");
-      showMessage(`Colecao "${collection.name}" excluida.`, "success");
+      showMessage(`Coleção "${collection.name}" excluída.`, "success");
     } catch (error) {
       showMessage(errorMessage(error), "error");
     }
@@ -310,7 +310,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
     if (paths.length) {
       void importBooks(paths);
     } else {
-      showMessage("Arraste um ou mais arquivos EPUB validos.", "warning");
+      showMessage("Arraste um ou mais arquivos EPUB válidos.", "warning");
     }
   }
 
@@ -411,7 +411,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
               ))}
             </div>
           ) : (
-            <EmptyState title="Sua Bookshelf ainda esta vazia.">
+            <EmptyState title="Sua biblioteca ainda está vazia.">
               <ImportButton
                 onImport={importBooks}
                 disabled={isImporting}
@@ -505,7 +505,7 @@ function CollectionsOverview({
           </div>
         </div>
         <div className="p-3">
-          <h3 className="text-sm font-semibold text-white">Nova colecao</h3>
+          <h3 className="text-sm font-semibold text-white">Nova coleção</h3>
           <p className="mt-1 text-xs text-neutral-400">Defina nome e livros</p>
         </div>
       </button>
@@ -599,7 +599,7 @@ function CollectionActionsMenu({
           setOpen((current) => !current);
         }}
         className="grid h-8 w-8 place-items-center rounded-md bg-black/55 text-neutral-200 backdrop-blur transition hover:bg-black/75 hover:text-amber-200"
-        title="Acoes da colecao"
+        title="Ações da coleção"
       >
         <MoreVertical size={16} />
       </button>
@@ -616,7 +616,7 @@ function CollectionActionsMenu({
             }}
           >
             <Edit3 size={14} />
-            Editar colecao
+            Editar coleção
           </CollectionMenuButton>
           <div className="mt-2 border-t border-white/10 pt-2">
             <CollectionMenuButton
@@ -627,7 +627,7 @@ function CollectionActionsMenu({
               }}
             >
               <Trash2 size={14} />
-              Excluir colecao
+              Excluir coleção
             </CollectionMenuButton>
           </div>
         </div>
@@ -698,7 +698,7 @@ function CollectionDialog({
               id="collection-dialog-title"
               className="text-base font-semibold text-white"
             >
-              {mode === "edit" ? "Editar colecao" : "Criar colecao"}
+              {mode === "edit" ? "Editar coleção" : "Criar coleção"}
             </h2>
             <p className="text-xs text-neutral-400">
               Escolha um nome e os livros do agrupamento.
@@ -717,12 +717,12 @@ function CollectionDialog({
 
         <div className="space-y-5 overflow-y-auto p-5">
           <label className="block">
-            <span className="text-xs text-neutral-400">Nome da colecao</span>
+            <span className="text-xs text-neutral-400">Nome da coleção</span>
             <input
               value={name}
               onChange={(event) => onNameChange(event.target.value)}
               className="mt-2 h-11 w-full rounded-lg border border-white/10 bg-neutral-950 px-3 text-sm outline-none ring-amber-300/30 transition focus:ring-4"
-              placeholder="Ex.: Ficcao cientifica"
+              placeholder="Ex.: Ficção científica"
             />
           </label>
 
@@ -761,7 +761,7 @@ function CollectionDialog({
                       )}
                       {selected ? (
                         <span className="absolute right-2 top-2 rounded bg-amber-300 px-2 py-1 text-[10px] font-semibold text-neutral-950">
-                          Incluido
+                          Incluído
                         </span>
                       ) : null}
                     </div>
@@ -793,7 +793,7 @@ function CollectionDialog({
             onClick={onSave}
             className="rounded-md border border-amber-300/40 bg-amber-300 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-amber-200"
           >
-            {mode === "edit" ? "Salvar colecao" : "Criar colecao"}
+            {mode === "edit" ? "Salvar coleção" : "Criar coleção"}
           </button>
         </footer>
       </section>
@@ -814,8 +814,7 @@ function EmptyState({
         <BookMarked className="mx-auto text-amber-300" size={42} />
         <p className="mt-4 text-lg font-semibold text-white">{title}</p>
         <p className="mt-2 max-w-md text-sm text-neutral-400">
-          Use Importar EPUB ou arraste um ou mais arquivos .epub para iniciar o
-          Ingestion Pipeline.
+          Importe um EPUB ou arraste arquivos para começar.
         </p>
         {children}
       </div>
