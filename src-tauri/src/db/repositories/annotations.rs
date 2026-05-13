@@ -12,6 +12,7 @@ pub fn create_bookmark(
     locator: &LocatorDto,
     label: Option<String>,
 ) -> Result<BookmarkDto, AppError> {
+    validate_locator_book(book_id, locator)?;
     let bookmark = BookmarkDto {
         id: Uuid::new_v4().to_string(),
         book_id: book_id.to_string(),
@@ -88,6 +89,7 @@ pub fn create_highlight(
     color: String,
     note: Option<String>,
 ) -> Result<HighlightDto, AppError> {
+    validate_locator_book(book_id, &range.locator)?;
     let now = Utc::now().to_rfc3339();
     let highlight = HighlightDto {
         id: Uuid::new_v4().to_string(),
@@ -180,4 +182,64 @@ pub fn update_highlight_note(
         params![note, Utc::now().to_rfc3339(), highlight_id],
     )?;
     Ok(())
+}
+
+fn validate_locator_book(book_id: &str, locator: &LocatorDto) -> Result<(), AppError> {
+    if book_id != locator.book_id {
+        return Err(AppError::new(
+            "locator_mismatch",
+            "Locator pertence a outro livro",
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{create_bookmark, create_highlight};
+    use crate::models::{HighlightRangeDto, LocatorDto};
+    use rusqlite::Connection;
+
+    fn locator(book_id: &str) -> LocatorDto {
+        LocatorDto {
+            book_id: book_id.to_string(),
+            href: "chapter.xhtml".to_string(),
+            spine_index: 0,
+            progression: 0.2,
+            total_progression: 0.2,
+            cfi: "epubcfi(/6/2!/4/2/2)".to_string(),
+            css_selector: None,
+            text_snippet: None,
+            display_page_index: Some(1),
+            display_page_count: Some(5),
+        }
+    }
+
+    #[test]
+    fn create_bookmark_rejects_locator_for_another_book() {
+        let connection = Connection::open_in_memory().expect("connection");
+
+        let error = create_bookmark(&connection, "book-a", &locator("book-b"), None)
+            .expect_err("locator mismatch");
+
+        assert_eq!(error.code, "locator_mismatch");
+    }
+
+    #[test]
+    fn create_highlight_rejects_locator_for_another_book() {
+        let connection = Connection::open_in_memory().expect("connection");
+        let range = HighlightRangeDto {
+            locator: locator("book-b"),
+            selected_text: "selected".to_string(),
+            text_snippet: None,
+            cfi: None,
+            css_selector: None,
+            dom_range_json: None,
+        };
+
+        let error = create_highlight(&connection, "book-a", range, "yellow".to_string(), None)
+            .expect_err("locator mismatch");
+
+        assert_eq!(error.code, "locator_mismatch");
+    }
 }

@@ -68,7 +68,7 @@ pub fn get_progress(
                     spine_index: row.get(2)?,
                     progression: row.get(3)?,
                     total_progression: row.get(4)?,
-                    cfi: row.get(5)?,
+                    cfi: row.get::<_, Option<String>>(5)?.unwrap_or_default(),
                     css_selector: row.get(6)?,
                     text_snippet: row.get(7)?,
                     display_page_index: row.get(8)?,

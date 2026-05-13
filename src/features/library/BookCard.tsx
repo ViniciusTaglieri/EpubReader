@@ -45,47 +45,44 @@ export function BookCard({
   if (view === "list") {
     return (
       <article
-        role="button"
-        tabIndex={0}
-        onClick={() => onOpen(book)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onOpen(book);
-          }
-        }}
-        className={`group relative grid cursor-pointer grid-cols-[4.5rem_1fr_auto] items-center gap-4 rounded-lg border border-white/10 bg-white/[0.045] p-3 transition hover:border-amber-300/40 hover:bg-white/[0.07] ${
+        className={`group relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-lg border border-white/10 bg-white/[0.045] p-3 transition hover:border-amber-300/40 hover:bg-white/[0.07] ${
           menuOpen ? "z-[80]" : "z-0"
         }`}
       >
-        <div className="relative aspect-[2/3] overflow-hidden rounded bg-neutral-900">
-          {coverUrl ? (
-            <img
-              src={coverUrl}
-              alt={`Capa de ${book.title}`}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="grid h-full place-items-center text-amber-100">
-              <BookOpen size={24} />
-            </div>
-          )}
-        </div>
-
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-white">
-            {book.title}
-          </h3>
-          <p className="mt-1 truncate text-xs text-neutral-300">
-            {book.author ?? "Autor desconhecido"}
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-400">
-            <span>{labelForStatus(book.readingStatus)}</span>
-            <span>{formatTextLength(book.textLength)}</span>
-            <span>{progress}%</span>
+        <button
+          type="button"
+          onClick={() => onOpen(book)}
+          className="grid min-w-0 grid-cols-[4.5rem_1fr] items-center gap-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+        >
+          <div className="relative aspect-[2/3] overflow-hidden rounded bg-neutral-900">
+            {coverUrl ? (
+              <img
+                src={coverUrl}
+                alt={`Capa de ${book.title}`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="grid h-full place-items-center text-amber-100">
+                <BookOpen size={24} />
+              </div>
+            )}
           </div>
-          <MetadataLine book={book} />
-        </div>
+
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-semibold text-white">
+              {book.title}
+            </h3>
+            <p className="mt-1 truncate text-xs text-neutral-300">
+              {book.author ?? "Autor desconhecido"}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-400">
+              <span>{labelForStatus(book.readingStatus)}</span>
+              <span>{formatTextLength(book.textLength)}</span>
+              <span>{progress}%</span>
+            </div>
+            <MetadataLine book={book} />
+          </div>
+        </button>
 
         <BookActionsMenu
           book={book}
@@ -103,76 +100,71 @@ export function BookCard({
 
   return (
     <article
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpen(book)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onOpen(book);
-        }
-      }}
-      className={`group relative cursor-pointer overflow-visible rounded-lg border border-white/10 bg-white/[0.045] shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:border-amber-300/40 ${
+      className={`group relative overflow-visible rounded-lg border border-white/10 bg-white/[0.045] shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:border-amber-300/40 ${
         menuOpen ? "z-[80]" : "z-0"
       }`}
     >
-      <div className="relative aspect-[2/3] overflow-hidden rounded-t-lg bg-neutral-900">
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={`Capa de ${book.title}`}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 p-5 text-center text-amber-100">
-            <BookOpen size={38} />
-            <span className="font-serif text-xl leading-tight">
-              {book.title}
-            </span>
-          </div>
-        )}
-        <span className="absolute left-3 top-3 rounded bg-black/55 px-2 py-1 text-xs font-semibold text-white backdrop-blur">
-          {labelForStatus(book.readingStatus)}
-        </span>
-      </div>
+      <button
+        type="button"
+        onClick={() => onOpen(book)}
+        className="block w-full overflow-hidden rounded-lg text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+      >
+        <div className="relative aspect-[2/3] overflow-hidden rounded-t-lg bg-neutral-900">
+          {coverUrl ? (
+            <img
+              src={coverUrl}
+              alt={`Capa de ${book.title}`}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-5 text-center text-amber-100">
+              <BookOpen size={38} />
+              <span className="font-serif text-xl leading-tight">
+                {book.title}
+              </span>
+            </div>
+          )}
+          <span className="absolute left-3 top-3 rounded bg-black/55 px-2 py-1 text-xs font-semibold text-white backdrop-blur">
+            {labelForStatus(book.readingStatus)}
+          </span>
+        </div>
 
-      <div className="p-3">
-        <div className="flex items-start gap-2">
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-sm font-semibold text-white">
-              {book.title}
-            </h3>
+        <div className="p-3 pr-11">
+          <h3 className="truncate text-sm font-semibold text-white">
+            {book.title}
+          </h3>
+          <div className="col-span-2 flex justify-between">
             <p className="truncate text-xs text-neutral-300">
               {book.author ?? "Autor desconhecido"}
             </p>
+            <p className="truncate text-xs text-neutral-400">
+              {formatTextLength(book.textLength)} Páginas
+            </p>
           </div>
-          <BookActionsMenu
-            book={book}
-            collections={collections}
-            open={menuOpen}
-            onOpenChange={setMenuOpen}
-            onDelete={onDelete}
-            onToggleFavorite={onToggleFavorite}
-            onCreateCollection={onCreateCollection}
-            onToggleCollection={onToggleCollection}
-          />
-        </div>
-
-        <MetadataLine book={book} />
-        <div className="mt-3 flex items-center gap-2">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/15">
-            <div
-              className="h-full rounded-full bg-amber-300"
-              style={{ width: `${progress}%` }}
-            />
+          <div className="mt-3 flex items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/15">
+              <div
+                className="h-full rounded-full bg-amber-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="w-9 text-right text-xs text-neutral-300">
+              {progress}%
+            </span>
           </div>
-          <span className="w-9 text-right text-xs text-neutral-300">
-            {progress}%
-          </span>
         </div>
-        <p className="mt-2 truncate text-xs text-neutral-400">
-          {formatTextLength(book.textLength)}
-        </p>
+      </button>
+      <div className="absolute right-3 top-[calc(100%_-_5.25rem)] z-[95]">
+        <BookActionsMenu
+          book={book}
+          collections={collections}
+          open={menuOpen}
+          onOpenChange={setMenuOpen}
+          onDelete={onDelete}
+          onToggleFavorite={onToggleFavorite}
+          onCreateCollection={onCreateCollection}
+          onToggleCollection={onToggleCollection}
+        />
       </div>
     </article>
   );
@@ -303,6 +295,7 @@ function BookActionsMenu({
         ref={menuButtonRef}
         type="button"
         title="Acoes do livro"
+        aria-label="Acoes do livro"
         onClick={(event) => {
           event.stopPropagation();
           onOpenChange(!open);
@@ -385,7 +378,7 @@ function BookActionsMenu({
           <div className="mt-2 border-t border-white/10 pt-2">
             <MenuButton danger onClick={() => runAction(() => onDelete(book))}>
               <Trash2 size={14} />
-              Remover do app
+              Remover da biblioteca
             </MenuButton>
           </div>
         </div>
@@ -452,7 +445,7 @@ function labelForStatus(status: BookDto["readingStatus"]) {
 function formatTextLength(textLength: number) {
   if (!textLength) return "Texto nao estimado";
   const pages = Math.max(1, Math.round(textLength / 1800));
-  return `Páginas estimadas ${pages}`;
+  return `${pages}`;
 }
 
 function formatDate(value: string) {

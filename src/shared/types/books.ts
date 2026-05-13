@@ -46,6 +46,7 @@ export type SpineItemDto = {
   href: string;
   mediaType: string;
   title?: string | null;
+  textLength?: number;
 };
 
 export type EpubManifestDto = {
@@ -56,35 +57,61 @@ export type EpubManifestDto = {
   toc: TocItemDto[];
 };
 
-export type ResourceDto = {
-  href: string;
-  mediaType: string;
-  contents: string;
-};
-
 export type ReadingLocator = {
   bookId: string;
   href: string;
   spineIndex: number;
   progression: number;
   totalProgression: number;
-  cfi?: string;
+  cfi: string;
   cssSelector?: string;
   textSnippet?: string;
   displayPageIndex?: number;
   displayPageCount?: number;
 };
 
-export type ReadingSettingsDto = {
+export type BookmarkDto = {
   id: string;
-  name: string;
-  fontFamily: string;
-  fontSize: number;
-  lineHeight: number;
-  margin: number;
-  paragraphSpacing: number;
-  theme: "light" | "dark" | "sepia" | "oled";
-  textAlign: "left" | "justify";
-  hyphenationEnabled: boolean;
-  ligaturesEnabled: boolean;
+  bookId: string;
+  href: string;
+  spineIndex: number;
+  progression: number;
+  totalProgression: number;
+  label?: string | null;
+  textSnippet?: string | null;
+  createdAt: string;
+};
+
+export type HighlightRangeDto = {
+  locator: ReadingLocator;
+  selectedText: string;
+  textSnippet?: string | null;
+  cfi?: string | null;
+  cssSelector?: string | null;
+  domRangeJson?: string | null;
+};
+
+export type HighlightDto = {
+  id: string;
+  bookId: string;
+  href: string;
+  spineIndex: number;
+  progression: number;
+  totalProgression: number;
+  selectedText: string;
+  color: string;
+  note?: string | null;
+  cfi?: string | null;
+  cssSelector?: string | null;
+  domRangeJson?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SearchResultDto = {
+  href: string;
+  spineIndex: number;
+  progression: number;
+  totalProgression: number;
+  snippet: string;
 };

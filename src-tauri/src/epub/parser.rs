@@ -83,6 +83,7 @@ fn parse_spine(document: &Document<'_>, manifest: &[ManifestItem]) -> Vec<SpineI
                 href: item.href.clone(),
                 media_type: item.media_type.clone(),
                 title: None,
+                text_length: 0,
             })
         })
         .collect()

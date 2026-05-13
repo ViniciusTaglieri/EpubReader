@@ -49,6 +49,8 @@ pub struct SpineItemDto {
     pub href: String,
     pub media_type: String,
     pub title: Option<String>,
+    #[serde(default)]
+    pub text_length: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,21 +74,13 @@ pub struct EpubManifestDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ResourceDto {
-    pub href: String,
-    pub media_type: String,
-    pub contents: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct LocatorDto {
     pub book_id: String,
     pub href: String,
     pub spine_index: i64,
     pub progression: f64,
     pub total_progression: f64,
-    pub cfi: Option<String>,
+    pub cfi: String,
     pub css_selector: Option<String>,
     pub text_snippet: Option<String>,
     pub display_page_index: Option<i64>,
@@ -145,20 +139,4 @@ pub struct SearchResultDto {
     pub progression: f64,
     pub total_progression: f64,
     pub snippet: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ReadingSettingsDto {
-    pub id: String,
-    pub name: String,
-    pub font_family: String,
-    pub font_size: i64,
-    pub line_height: f64,
-    pub margin: i64,
-    pub paragraph_spacing: f64,
-    pub theme: String,
-    pub text_align: String,
-    pub hyphenation_enabled: bool,
-    pub ligatures_enabled: bool,
 }

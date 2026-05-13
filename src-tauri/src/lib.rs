@@ -37,10 +37,8 @@ pub fn run() {
             commands::collections::add_book_to_collection,
             commands::collections::remove_book_from_collection,
             commands::collections::delete_collection,
-            commands::reader::get_book_manifest,
-            commands::reader::get_book_rendition,
-            commands::reader::get_spine_resource,
             commands::reader::get_cover,
+            commands::reader::read_book,
             commands::reader::save_progress,
             commands::reader::get_progress,
             commands::annotations::create_bookmark,
@@ -49,8 +47,7 @@ pub fn run() {
             commands::annotations::create_highlight,
             commands::annotations::list_highlights,
             commands::annotations::update_highlight_note,
-            commands::reader::search_in_book,
-            commands::settings::update_reading_settings
+            commands::reader::search_in_book
         ])
         .run(tauri::generate_context!())
         .expect("error while running Reading System");

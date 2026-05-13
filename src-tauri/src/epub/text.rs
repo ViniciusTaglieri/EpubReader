@@ -5,11 +5,17 @@ use crate::{
 use std::path::Path;
 
 pub fn estimate_epub_text_length(epub_path: &Path, parsed: &ParsedEpub) -> i64 {
+    estimate_spine_text_lengths(epub_path, parsed)
+        .into_iter()
+        .sum::<i64>()
+}
+
+pub fn estimate_spine_text_lengths(epub_path: &Path, parsed: &ParsedEpub) -> Vec<i64> {
     parsed
         .spine
         .iter()
-        .map(|item| estimate_spine_text_length(epub_path, item))
-        .sum::<usize>() as i64
+        .map(|item| estimate_spine_text_length(epub_path, item) as i64)
+        .collect()
 }
 
 fn estimate_spine_text_length(epub_path: &Path, item: &SpineItemDto) -> usize {
