@@ -3,7 +3,6 @@ import {
   BookMarked,
   ChevronDown,
   ChevronsLeft,
-  ChevronsRight,
   FolderOpen,
   Library,
   Settings,
@@ -43,17 +42,7 @@ export function LibrarySidebar({
       }`}
     >
       <nav className="space-y-2" aria-label="Navegacao da biblioteca">
-        <div className="mb-5 flex items-center gap-3 overflow-hidden px-1">
-          <div className="flex min-w-0 items-center gap-3 overflow-hidden">
-            <BookMarked className="text-amber-300" size={28} />
-            {collapsed ? null : (
-              <h1 className="truncate text-xl font-bold">Leitor EPUB</h1>
-            )}
-          </div>
-        </div>
-        <SideItem
-          icon={collapsed ? <ChevronsRight size={22} /> : <ChevronsLeft size={22} />}
-          label={collapsed ? "Expandir sidebar" : "Recolher sidebar"}
+        <BrandToggle
           collapsed={collapsed}
           onClick={onToggleCollapsed}
         />
@@ -105,6 +94,41 @@ export function LibrarySidebar({
         />
       </nav>
     </aside>
+  );
+}
+
+function BrandToggle({
+  collapsed,
+  onClick,
+}: {
+  collapsed: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={collapsed ? "Expandir sidebar" : "Recolher sidebar"}
+      aria-label={collapsed ? "Expandir sidebar" : "Recolher sidebar"}
+      className={`group mb-5 flex w-full items-center rounded-md px-4 py-3 text-left transition hover:bg-white/[0.06] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 ${
+        collapsed ? "justify-center px-0" : "gap-3"
+      }`}
+    >
+      <BookMarked className="shrink-0 text-amber-300" size={28} />
+      {collapsed ? null : (
+        <>
+          <span className="min-w-0 flex-1 truncate text-xl font-bold text-white">
+            Leitor EPUB
+          </span>
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-neutral-300 transition group-hover:text-amber-100">
+            <ChevronsLeft size={17} />
+          </span>
+        </>
+      )}
+      {collapsed ? (
+        <span className="sr-only">Expandir sidebar</span>
+      ) : null}
+    </button>
   );
 }
 
