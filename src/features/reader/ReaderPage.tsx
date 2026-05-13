@@ -23,6 +23,7 @@ import {
 import ePub from "epubjs";
 import { commands, errorMessage } from "../../shared/tauri/commands";
 import type { BookDetailDto, ReadingLocator } from "../../shared/types/books";
+import { loadLibraryPreferences } from "../library/libraryPreferences";
 import {
   DEFAULT_READER_SETTINGS,
   applyReaderSettings,
@@ -84,6 +85,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
   });
   const readerSettingsRef = useRef(readerSettings);
   const isLoadingRef = useRef(isLoading);
+  const wheelPageTurnRef = useRef(loadLibraryPreferences().wheelPageTurn);
 
   useEffect(() => {
     let cancelled = false;
@@ -225,6 +227,19 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
   }, [isLoading]);
 
   useEffect(() => {
+    const refreshWheelPreference = () => {
+      wheelPageTurnRef.current = loadLibraryPreferences().wheelPageTurn;
+    };
+    refreshWheelPreference();
+    window.addEventListener("storage", refreshWheelPreference);
+    window.addEventListener("focus", refreshWheelPreference);
+    return () => {
+      window.removeEventListener("storage", refreshWheelPreference);
+      window.removeEventListener("focus", refreshWheelPreference);
+    };
+  }, []);
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented || isEditableTarget(event.target)) return;
       if (event.key === "ArrowRight") {
@@ -313,7 +328,11 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     deltaY: number,
     preventDefault: () => void,
   ) {
-    if (readerSettingsRef.current.flow === "continuous" || isLoadingRef.current) {
+    if (
+      !wheelPageTurnRef.current ||
+      readerSettingsRef.current.flow === "continuous" ||
+      isLoadingRef.current
+    ) {
       return;
     }
     const dominantDelta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;

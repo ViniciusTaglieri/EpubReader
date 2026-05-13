@@ -17,6 +17,11 @@ import {
   type LibraryFilters,
   type LibrarySort,
 } from "./libraryFilters";
+import {
+  loadLibraryPreferences,
+  saveLibraryPreferences,
+  type LibraryPreferences,
+} from "./libraryPreferences";
 import { commands, errorMessage } from "../../shared/tauri/commands";
 import {
   AppMessage,
@@ -30,6 +35,11 @@ import { LibrarySettingsPage } from "./LibrarySettingsPage";
 import { LibraryToolbar } from "./LibraryToolbar";
 import type { LibrarySection, LibraryView } from "./libraryTypes";
 import { useBookCovers, type CoverMap } from "./useBookCovers";
+import {
+  loadReaderSettings,
+  saveReaderSettings,
+  type ReaderSettings,
+} from "../reader/epubCfiReader";
 
 const LIBRARY_FILTERS_STORAGE_KEY = "epub-reader:library-filters";
 const LIBRARY_VIEW_STORAGE_KEY = "epub-reader:library-view";
@@ -43,6 +53,12 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   const covers = useBookCovers(books);
   const [filters, setFilters] = useState<LibraryFilters>(() =>
     loadSavedFilters(),
+  );
+  const [preferences, setPreferences] = useState<LibraryPreferences>(() =>
+    loadLibraryPreferences(),
+  );
+  const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
+    loadReaderSettings(),
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
@@ -84,6 +100,14 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   useEffect(() => {
     window.localStorage.setItem(LIBRARY_VIEW_STORAGE_KEY, view);
   }, [view]);
+
+  useEffect(() => {
+    saveLibraryPreferences(preferences);
+  }, [preferences]);
+
+  useEffect(() => {
+    saveReaderSettings(readerSettings);
+  }, [readerSettings]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -317,7 +341,9 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
 
   return (
     <main
-      className="flex h-screen overflow-hidden text-neutral-100"
+      className={`flex h-screen overflow-hidden text-neutral-100 ${
+        preferences.theme === "light" ? "bg-[#f6f2ea]" : "bg-[#12110f]"
+      }`}
       onDragOver={(event) => event.preventDefault()}
       onDrop={handleDrop}
     >
@@ -378,8 +404,16 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
               view={view}
               filters={filters}
               sidebarCollapsed={sidebarCollapsed}
+              preferences={preferences}
+              readerSettings={readerSettings}
               onViewChange={setView}
               onSidebarCollapsedChange={setSidebarCollapsed}
+              onPreferencesChange={(next) =>
+                setPreferences((current) => ({ ...current, ...next }))
+              }
+              onReaderSettingsChange={(next) =>
+                setReaderSettings((current) => ({ ...current, ...next }))
+              }
             />
           ) : activeSection === "collections" && !selectedCollectionId ? (
             <CollectionsOverview
@@ -395,8 +429,12 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
             <div
               className={
                 view === "grid"
-                  ? "grid grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] gap-5"
-                  : "space-y-3"
+                  ? `grid grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] ${
+                      preferences.density === "compact" ? "gap-3" : "gap-5"
+                    }`
+                  : preferences.density === "compact"
+                    ? "space-y-2"
+                    : "space-y-3"
               }
             >
               <ImportButton
