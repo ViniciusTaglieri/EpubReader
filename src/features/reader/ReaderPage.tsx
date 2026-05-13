@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ComponentType } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type WheelEvent,
+} from "react";
 import {
   ArrowLeft,
   AlignJustify,
@@ -119,7 +125,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           flow: readerSettings.flow === "continuous" ? "scrolled-doc" : "paginated",
           width: initialViewerSize.width,
           height: initialViewerSize.height,
-          gap: 0,
+          gap: readerColumnGap(readerSettings),
           spread: readerSettings.spread === "double" ? "auto" : "none",
         });
         renditionRef.current = rendition;
@@ -194,6 +200,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     const rendition = renditionRef.current;
     if (!rendition) return;
     applyReaderSettings(rendition, readerSettings);
+    applyRenditionGap(rendition, readerColumnGap(readerSettings));
     const handle = window.setTimeout(() => {
       const cfi = latestLocatorRef.current?.cfi;
       resizeRenditionToViewer(
@@ -207,6 +214,23 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     }, 80);
     return () => window.clearTimeout(handle);
   }, [readerSettings]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || isEditableTarget(event.target)) return;
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        nextPage();
+      }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        previousPage();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -248,6 +272,28 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
 
   function nextPage() {
     void renditionRef.current?.next();
+  }
+
+  const lastWheelTurnRef = useRef(0);
+
+  function handleReaderWheel(event: WheelEvent<HTMLElement>) {
+    if (readerSettings.flow === "continuous" || isLoading) return;
+    const dominantDelta =
+      Math.abs(event.deltaX) > Math.abs(event.deltaY)
+        ? event.deltaX
+        : event.deltaY;
+    if (Math.abs(dominantDelta) < 18) return;
+
+    const now = window.performance.now();
+    if (now - lastWheelTurnRef.current < 420) return;
+    lastWheelTurnRef.current = now;
+    event.preventDefault();
+
+    if (dominantDelta > 0) {
+      nextPage();
+    } else {
+      previousPage();
+    }
   }
 
   function goToTocItem(item: ReaderTocItem, index: number) {
@@ -360,7 +406,10 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
         />
       ) : null}
 
-      <section className="relative min-h-0 flex-1 overflow-hidden bg-black/55 p-5">
+      <section
+        className="relative min-h-0 flex-1 overflow-hidden bg-black/55 p-5"
+        onWheel={handleReaderWheel}
+      >
         <button
           type="button"
           onClick={previousPage}
@@ -471,6 +520,29 @@ function getViewerSize(viewer: HTMLDivElement) {
     width: Math.floor(bounds.width || viewer.clientWidth),
     height: Math.floor(bounds.height || viewer.clientHeight),
   };
+}
+
+function readerColumnGap(settings: ReaderSettings) {
+  return settings.flow === "paginated" && settings.spread === "double" ? 72 : 24;
+}
+
+function applyRenditionGap(rendition: Rendition, gap: number) {
+  const renditionWithManager = rendition as Rendition & {
+    manager?: { settings?: { gap?: number } };
+  };
+  if (renditionWithManager.manager?.settings) {
+    renditionWithManager.manager.settings.gap = gap;
+  }
+}
+
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT"
+  );
 }
 
 function flattenToc(items: EpubTocItem[], depth = 0): ReaderTocItem[] {
