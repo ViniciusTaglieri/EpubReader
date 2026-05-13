@@ -4,6 +4,7 @@ import {
   normalizeReaderSettings,
   pageStatsFromLocation,
   sanitizeRenderedEpubDocument,
+  shouldSaveLocator,
   type EpubBook,
 } from "./epubCfiReader";
 
@@ -71,5 +72,11 @@ describe("epubCfiReader", () => {
       "href",
       "chapter.xhtml",
     );
+  });
+
+  it("does not save identical CFI repeatedly", () => {
+    expect(shouldSaveLocator("epubcfi(/6/2)", "epubcfi(/6/2)")).toBe(false);
+    expect(shouldSaveLocator("epubcfi(/6/2)", "epubcfi(/6/4)")).toBe(true);
+    expect(shouldSaveLocator(null, "epubcfi(/6/2)")).toBe(true);
   });
 });

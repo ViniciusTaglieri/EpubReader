@@ -27,6 +27,7 @@ import {
   readerShellColors,
   sanitizeRenderedEpubDocument,
   saveReaderSettings,
+  shouldSaveLocator,
   type EpubBook,
   type EpubLocation,
   type EpubTocItem,
@@ -52,6 +53,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const latestLocatorRef = useRef<ReadingLocator | null>(null);
+  const lastSavedCfiRef = useRef<string | null>(null);
   const saveChainRef = useRef(Promise.resolve());
   const tocItemsRef = useRef<ReaderTocItem[]>([]);
   const [book, setBook] = useState<BookDetailDto | null>(null);
@@ -137,13 +139,16 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
               currentIndex,
             ),
           );
-          saveChainRef.current = saveChainRef.current
-            .catch(() => undefined)
-            .then(() =>
-              commands.saveProgress(bookId, locator).catch((error) => {
-                setMessage(errorMessage(error));
-              }),
-            );
+          if (shouldSaveLocator(lastSavedCfiRef.current, cfi)) {
+            lastSavedCfiRef.current = cfi;
+            saveChainRef.current = saveChainRef.current
+              .catch(() => undefined)
+              .then(() =>
+                commands.saveProgress(bookId, locator).catch((error) => {
+                  setMessage(errorMessage(error));
+                }),
+              );
+          }
         };
 
         rendition.on("relocated", handleRelocated);
@@ -178,6 +183,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
       epubRef.current?.destroy?.();
       renditionRef.current = null;
       epubRef.current = null;
+      lastSavedCfiRef.current = null;
       tocItemsRef.current = [];
       viewerElement.replaceChildren();
     };

@@ -219,6 +219,10 @@ export function sanitizeRenderedEpubDocument(doc: Document) {
   });
 }
 
+export function shouldSaveLocator(previousCfi: string | null, nextCfi: string) {
+  return previousCfi !== nextCfi;
+}
+
 export function pageStatsFromLocation(
   location: EpubLocation,
   epub: EpubBook | null,
