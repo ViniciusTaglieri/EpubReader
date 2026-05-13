@@ -11,6 +11,7 @@ import type {
   SearchResultDto
 } from "../types/books";
 import { normalizePickedEpubPaths } from "../../features/library/importPaths";
+import { ERROR_COPY, GENERIC_ERROR_COPY } from "../copy/ptBr";
 
 export type AppError = {
   code: string;
@@ -71,8 +72,9 @@ export const commands = {
 };
 
 export function errorMessage(error: unknown): string {
-  if (typeof error === "object" && error !== null && "message" in error) {
-    return String((error as AppError).message);
+  if (typeof error === "object" && error !== null && "code" in error) {
+    const code = String((error as AppError).code);
+    return ERROR_COPY[code] ?? GENERIC_ERROR_COPY;
   }
-  return "Nao foi possivel concluir a operacao.";
+  return GENERIC_ERROR_COPY;
 }
