@@ -43,27 +43,20 @@ export function LibrarySidebar({
       }`}
     >
       <nav className="space-y-2" aria-label="Navegacao da biblioteca">
-        <div
-          className={`mb-5 flex items-center gap-3 ${
-            collapsed ? "justify-center" : "justify-between"
-          }`}
-        >
+        <div className="mb-5 flex items-center gap-3 overflow-hidden px-1">
           <div className="flex min-w-0 items-center gap-3 overflow-hidden">
             <BookMarked className="text-amber-300" size={28} />
             {collapsed ? null : (
               <h1 className="truncate text-xl font-bold">Leitor EPUB</h1>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onToggleCollapsed}
-            title={collapsed ? "Expandir sidebar" : "Recolher sidebar"}
-            aria-label={collapsed ? "Expandir sidebar" : "Recolher sidebar"}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-neutral-300 transition hover:bg-white/[0.06] hover:text-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
-          >
-            {collapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
-          </button>
         </div>
+        <SideItem
+          icon={collapsed ? <ChevronsRight size={22} /> : <ChevronsLeft size={22} />}
+          label={collapsed ? "Expandir sidebar" : "Recolher sidebar"}
+          collapsed={collapsed}
+          onClick={onToggleCollapsed}
+        />
         <SideItem
           icon={<Library size={22} />}
           label="Biblioteca"

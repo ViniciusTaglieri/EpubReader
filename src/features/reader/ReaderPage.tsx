@@ -60,6 +60,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
   const renditionRef = useRef<Rendition | null>(null);
   const latestLocatorRef = useRef<ReadingLocator | null>(null);
   const lastSavedCfiRef = useRef<string | null>(null);
+  const lastWheelTurnRef = useRef(0);
   const saveChainRef = useRef(Promise.resolve());
   const tocItemsRef = useRef<ReaderTocItem[]>([]);
   const [book, setBook] = useState<BookDetailDto | null>(null);
@@ -81,6 +82,8 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     totalPages: 1,
     remainingPages: 0,
   });
+  const readerSettingsRef = useRef(readerSettings);
+  const isLoadingRef = useRef(isLoading);
 
   useEffect(() => {
     let cancelled = false;
@@ -162,6 +165,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
           const renderedDocument = view?.document;
           if (renderedDocument) {
             sanitizeRenderedEpubDocument(renderedDocument);
+            bindReaderDocumentNavigation(renderedDocument);
           }
         });
         await epub.locations?.generate?.(1600);
@@ -196,6 +200,7 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
   }, [bookId]);
 
   useEffect(() => {
+    readerSettingsRef.current = readerSettings;
     saveReaderSettings(readerSettings);
     const rendition = renditionRef.current;
     if (!rendition) return;
@@ -214,6 +219,10 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     }, 80);
     return () => window.clearTimeout(handle);
   }, [readerSettings]);
+
+  useEffect(() => {
+    isLoadingRef.current = isLoading;
+  }, [isLoading]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -274,26 +283,49 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
     void renditionRef.current?.next();
   }
 
-  const lastWheelTurnRef = useRef(0);
+  function bindReaderDocumentNavigation(doc: Document) {
+    doc.onkeydown = (event) => {
+      if (event.defaultPrevented || isEditableTarget(event.target)) return;
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        nextPage();
+      }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        previousPage();
+      }
+    };
+    doc.onwheel = (event) => {
+      handleReaderWheelDelta(event.deltaX, event.deltaY, () =>
+        event.preventDefault(),
+      );
+    };
+  }
 
   function handleReaderWheel(event: WheelEvent<HTMLElement>) {
-    if (readerSettings.flow === "continuous" || isLoading) return;
-    const dominantDelta =
-      Math.abs(event.deltaX) > Math.abs(event.deltaY)
-        ? event.deltaX
-        : event.deltaY;
+    handleReaderWheelDelta(event.deltaX, event.deltaY, () =>
+      event.preventDefault(),
+    );
+  }
+
+  function handleReaderWheelDelta(
+    deltaX: number,
+    deltaY: number,
+    preventDefault: () => void,
+  ) {
+    if (readerSettingsRef.current.flow === "continuous" || isLoadingRef.current) {
+      return;
+    }
+    const dominantDelta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
     if (Math.abs(dominantDelta) < 18) return;
 
     const now = window.performance.now();
     if (now - lastWheelTurnRef.current < 420) return;
     lastWheelTurnRef.current = now;
-    event.preventDefault();
+    preventDefault();
 
-    if (dominantDelta > 0) {
-      nextPage();
-    } else {
-      previousPage();
-    }
+    if (dominantDelta > 0) nextPage();
+    else previousPage();
   }
 
   function goToTocItem(item: ReaderTocItem, index: number) {
