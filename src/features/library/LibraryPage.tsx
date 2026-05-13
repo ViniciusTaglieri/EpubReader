@@ -23,6 +23,7 @@ import {
   type AppMessageData,
   type AppMessageVariant,
 } from "../../shared/components/AppMessage";
+import { ConfirmDialog } from "../../shared/components/ConfirmDialog";
 import type { BookDto, CollectionDto } from "../../shared/types/books";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { LibraryToolbar } from "./LibraryToolbar";
@@ -59,6 +60,11 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   );
   const [collectionName, setCollectionName] = useState("");
   const [collectionBookIds, setCollectionBookIds] = useState<string[]>([]);
+  const [pendingDeleteBook, setPendingDeleteBook] = useState<BookDto | null>(
+    null,
+  );
+  const [pendingDeleteCollection, setPendingDeleteCollection] =
+    useState<CollectionDto | null>(null);
   const selectedCollection = collections.find(
     (collection) => collection.id === selectedCollectionId,
   );
@@ -270,12 +276,6 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   }
 
   async function deleteCollection(collection: CollectionDto) {
-    if (
-      !window.confirm(
-        `Excluir a colecao "${collection.name}"? Os livros permanecem na biblioteca.`,
-      )
-    )
-      return;
     try {
       await commands.deleteCollection(collection.id);
       await refreshCollections();
@@ -290,12 +290,6 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   }
 
   async function deleteBook(book: BookDto) {
-    if (
-      !window.confirm(
-        `Remover "${book.title}" do app e apagar todos os arquivos salvos deste livro?`,
-      )
-    )
-      return;
     try {
       await commands.deleteBook(book.id);
       setBooks((current) => current.filter((item) => item.id !== book.id));
@@ -384,7 +378,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
               onCreate={() => openCollectionDialog()}
               onOpen={(collection) => setSelectedCollectionId(collection.id)}
               onEdit={(collection) => openCollectionDialog([], collection)}
-              onDelete={deleteCollection}
+              onDelete={setPendingDeleteCollection}
             />
           ) : visibleBooks.length ? (
             <div
@@ -409,7 +403,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
                   view={view}
                   collections={collections}
                   onOpen={onOpenBook}
-                  onDelete={deleteBook}
+                  onDelete={setPendingDeleteBook}
                   onToggleFavorite={toggleFavorite}
                   onCreateCollection={createCollectionForBook}
                   onToggleCollection={toggleBookCollection}
@@ -445,6 +439,36 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
           onCancel={() => setCollectionDialogOpen(false)}
           onSave={saveCollection}
           mode={editingCollectionId ? "edit" : "create"}
+        />
+      ) : null}
+
+      {pendingDeleteCollection ? (
+        <ConfirmDialog
+          title="Excluir coleção"
+          description={`Excluir "${pendingDeleteCollection.name}"? Os livros permanecem na biblioteca.`}
+          confirmLabel="Excluir coleção"
+          danger
+          onCancel={() => setPendingDeleteCollection(null)}
+          onConfirm={() => {
+            const collection = pendingDeleteCollection;
+            setPendingDeleteCollection(null);
+            void deleteCollection(collection);
+          }}
+        />
+      ) : null}
+
+      {pendingDeleteBook ? (
+        <ConfirmDialog
+          title="Remover livro"
+          description={`Remover "${pendingDeleteBook.title}" do app e apagar os arquivos salvos deste livro?`}
+          confirmLabel="Remover livro"
+          danger
+          onCancel={() => setPendingDeleteBook(null)}
+          onConfirm={() => {
+            const book = pendingDeleteBook;
+            setPendingDeleteBook(null);
+            void deleteBook(book);
+          }}
         />
       ) : null}
     </main>
