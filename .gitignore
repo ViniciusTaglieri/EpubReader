@@ -1,5 +1,10 @@
 node_modules
 dist
+output
+coverage
+.vite
+.cache
+.turbo
 target
 src-tauri/target
 .codex
