@@ -1,21 +1,25 @@
-import { Upload } from "lucide-react";
-import { pickEpubFiles } from "../../shared/tauri/commands";
+import { Upload } from 'lucide-react'
+import { pickEpubFiles } from '../../shared/tauri/commands'
 
 type ImportButtonProps = {
-  onImport: (paths: string[]) => void;
-  disabled?: boolean;
-  view?: "grid" | "list" | "empty";
-};
+  onImport: (paths: string[]) => void
+  disabled?: boolean
+  view?: 'grid' | 'list' | 'empty'
+}
 
-export function ImportButton({ onImport, disabled, view = "grid" }: ImportButtonProps) {
+export function ImportButton({
+  onImport,
+  disabled,
+  view = 'grid',
+}: ImportButtonProps) {
   async function handleClick() {
-    const paths = await pickEpubFiles();
+    const paths = await pickEpubFiles()
     if (paths.length) {
-      onImport(paths);
+      onImport(paths)
     }
   }
 
-  if (view === "list") {
+  if (view === 'list') {
     return (
       <button
         type="button"
@@ -27,11 +31,15 @@ export function ImportButton({ onImport, disabled, view = "grid" }: ImportButton
           <Upload size={24} aria-hidden />
         </span>
         <span>
-          <span className="block text-sm font-semibold text-white">Importar EPUB</span>
-          <span className="mt-1 block text-xs text-neutral-400">Adicionar livro a partir de um arquivo local.</span>
+          <span className="block text-sm font-semibold text-white">
+            Importar EPUB
+          </span>
+          <span className="mt-1 block text-xs text-neutral-400">
+            Adicionar livro a partir de um arquivo local.
+          </span>
         </span>
       </button>
-    );
+    )
   }
 
   return (
@@ -40,7 +48,7 @@ export function ImportButton({ onImport, disabled, view = "grid" }: ImportButton
       disabled={disabled}
       onClick={handleClick}
       className={`group overflow-hidden rounded-lg border border-dashed border-amber-300/35 bg-amber-300/5 text-left shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:border-amber-300/70 hover:bg-amber-300/10 disabled:cursor-not-allowed disabled:opacity-50 ${
-        view === "empty" ? "mx-auto mt-5 block w-full max-w-48" : ""
+        view === 'empty' ? 'mx-auto mt-5 block w-full max-w-48' : ''
       }`}
     >
       <span className="grid aspect-[2/3] place-items-center bg-neutral-950/70">
@@ -49,9 +57,13 @@ export function ImportButton({ onImport, disabled, view = "grid" }: ImportButton
         </span>
       </span>
       <span className="block p-3">
-        <span className="block text-sm font-semibold text-white">Importar EPUB</span>
-        <span className="mt-1 block text-xs text-neutral-400">Selecionar arquivo</span>
+        <span className="block text-sm font-semibold text-white">
+          Importar EPUB
+        </span>
+        <span className="mt-1 block text-xs text-neutral-400">
+          Selecionar arquivo
+        </span>
       </span>
     </button>
-  );
+  )
 }

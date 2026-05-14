@@ -1,18 +1,18 @@
 type ConfirmDialogProps = {
-  title: string;
-  description: string;
-  confirmLabel: string;
-  cancelLabel?: string;
-  danger?: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-};
+  title: string
+  description: string
+  confirmLabel: string
+  cancelLabel?: string
+  danger?: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}
 
 export function ConfirmDialog({
   title,
   description,
   confirmLabel,
-  cancelLabel = "Cancelar",
+  cancelLabel = 'Cancelar',
   danger = false,
   onConfirm,
   onCancel,
@@ -21,7 +21,7 @@ export function ConfirmDialog({
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-6 backdrop-blur-sm"
       onKeyDown={(event) => {
-        if (event.key === "Escape") onCancel();
+        if (event.key === 'Escape') onCancel()
       }}
     >
       <section
@@ -53,8 +53,8 @@ export function ConfirmDialog({
             onClick={onConfirm}
             className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
               danger
-                ? "bg-red-300 text-red-950 hover:bg-red-200"
-                : "bg-amber-300 text-neutral-950 hover:bg-amber-200"
+                ? 'bg-red-300 text-red-950 hover:bg-red-200'
+                : 'bg-amber-300 text-neutral-950 hover:bg-amber-200'
             }`}
           >
             {confirmLabel}
@@ -62,5 +62,5 @@ export function ConfirmDialog({
         </div>
       </section>
     </div>
-  );
+  )
 }

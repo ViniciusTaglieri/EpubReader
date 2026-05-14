@@ -3,10 +3,14 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: dark light;
   background: #111315;
   color: #f4efe7;
-  font-family: Inter, Segoe UI, system-ui, sans-serif;
+  font-family:
+    Inter,
+    Segoe UI,
+    system-ui,
+    sans-serif;
 }
 
 body {
@@ -14,7 +18,11 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(195, 160, 93, 0.14), transparent 28rem),
+    radial-gradient(
+      circle at top left,
+      rgba(195, 160, 93, 0.14),
+      transparent 28rem
+    ),
     linear-gradient(135deg, #151719, #0f1114 54%, #1c1914);
 }
 
@@ -22,4 +30,95 @@ button,
 input,
 select {
   font: inherit;
+}
+
+.app-titlebar {
+  -webkit-app-region: drag;
+}
+
+.app-titlebar button {
+  -webkit-app-region: no-drag;
+}
+
+[data-library-theme="light"] {
+  color: #26201a;
+}
+
+[data-library-theme="light"] .library-topbar {
+  border-color: rgba(92, 70, 45, 0.16) !important;
+  background: rgba(250, 246, 237, 0.94) !important;
+}
+
+[data-library-theme="light"] .bg-\[\#12110f\] {
+  background-color: #f7f2e8 !important;
+}
+
+[data-library-theme="light"] .bg-\[\#1f1d1a\] {
+  background-color: #fffaf0 !important;
+}
+
+[data-library-theme="light"] .bg-black\/25,
+[data-library-theme="light"] .bg-black\/35,
+[data-library-theme="light"] .bg-black\/55,
+[data-library-theme="light"] .bg-neutral-950,
+[data-library-theme="light"] .bg-neutral-950\/40,
+[data-library-theme="light"] .bg-neutral-950\/70,
+[data-library-theme="light"] .bg-neutral-900 {
+  background-color: rgba(255, 250, 240, 0.88) !important;
+}
+
+[data-library-theme="light"] .bg-white\/10,
+[data-library-theme="light"] .bg-white\/\[0\.03\],
+[data-library-theme="light"] .bg-white\/\[0\.035\],
+[data-library-theme="light"] .bg-white\/\[0\.04\],
+[data-library-theme="light"] .bg-white\/\[0\.045\],
+[data-library-theme="light"] .bg-white\/\[0\.06\],
+[data-library-theme="light"] .bg-white\/\[0\.07\] {
+  background-color: rgba(255, 255, 255, 0.74) !important;
+}
+
+[data-library-theme="light"] .border-white\/10,
+[data-library-theme="light"] .border-white\/15,
+[data-library-theme="light"] .border-white\/25 {
+  border-color: rgba(92, 70, 45, 0.16) !important;
+}
+
+[data-library-theme="light"] .text-white,
+[data-library-theme="light"] .text-neutral-100,
+[data-library-theme="light"] .text-neutral-200,
+[data-library-theme="light"] .text-neutral-300 {
+  color: #2b241d !important;
+}
+
+[data-library-theme="light"] .text-neutral-400 {
+  color: #6f6255 !important;
+}
+
+[data-library-theme="light"] .text-neutral-500,
+[data-library-theme="light"] .text-neutral-600 {
+  color: #837466 !important;
+}
+
+[data-library-theme="light"] .text-amber-100,
+[data-library-theme="light"] .text-amber-200,
+[data-library-theme="light"] .text-amber-300 {
+  color: #7a4b00 !important;
+}
+
+[data-library-theme="light"] .bg-amber-300,
+[data-library-theme="light"] .bg-amber-200 {
+  background-color: #d69214 !important;
+}
+
+[data-library-theme="light"] .text-neutral-950 {
+  color: #21180f !important;
+}
+
+[data-library-theme="light"] .placeholder\:text-neutral-400::placeholder {
+  color: #8a7b6c !important;
+}
+
+[data-library-theme="light"] .shadow-black\/20,
+[data-library-theme="light"] .shadow-black\/50 {
+  --tw-shadow-color: rgba(80, 59, 34, 0.13) !important;
 }

@@ -1,3 +1,3 @@
 export function AnnotationPopup() {
-  return null;
+  return null
 }
