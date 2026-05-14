@@ -13,7 +13,7 @@ pub fn create_collection(connection: &Connection, name: &str) -> Result<Collecti
     if collection.name.is_empty() {
         return Err(AppError::new(
             "invalid_collection",
-            "Informe um nome para a colecao",
+            "Informe um nome para a coleção",
         ));
     }
     connection.execute(
@@ -58,7 +58,7 @@ pub fn update_collection(
     if normalized_name.is_empty() {
         return Err(AppError::new(
             "invalid_collection",
-            "Informe um nome para a colecao",
+            "Informe um nome para a coleção",
         ));
     }
 

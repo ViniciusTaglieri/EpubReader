@@ -1,6 +1,11 @@
 use crate::{
     db::repositories::books,
-    epub::{parser::parse_epub, resources, text::estimate_epub_text_length},
+    epub::{
+        parser::parse_epub,
+        resources,
+        search_index::{build_search_index, write_search_index},
+        text::estimate_epub_text_length,
+    },
     error::AppError,
     models::BookDto,
     storage::{files::sha256_file, staging::ImportStaging},
@@ -25,6 +30,7 @@ pub fn import_epub(path: String, state: State<'_, AppState>) -> Result<BookDto, 
             "Selecione um arquivo .epub",
         ));
     }
+    crate::epub::validation::validate_epub_source(&source)?;
 
     let file_hash = sha256_file(&source)?;
     let connection = state.db.connect()?;
@@ -66,7 +72,8 @@ pub fn import_epub(path: String, state: State<'_, AppState>) -> Result<BookDto, 
         &manifest_path,
         serde_json::to_string_pretty(&parsed.dto(&book_id))?.as_bytes(),
     )?;
-    resources::write_bytes(staging_dir.join("search_index.json").as_path(), b"[]")?;
+    let search_index = build_search_index(&local_epub, &parsed);
+    write_search_index(&staging_dir.join("search_index.json"), &search_index)?;
 
     let now = Utc::now().to_rfc3339();
     let book = BookDto {
@@ -74,7 +81,7 @@ pub fn import_epub(path: String, state: State<'_, AppState>) -> Result<BookDto, 
         title: parsed
             .metadata
             .title
-            .unwrap_or_else(|| "Sem titulo".to_string()),
+            .unwrap_or_else(|| "Sem título".to_string()),
         subtitle: parsed.metadata.subtitle,
         author: parsed.metadata.author,
         publisher: parsed.metadata.publisher,

@@ -1,3 +1,3 @@
 export function HighlightLayer() {
-  return null;
+  return null
 }

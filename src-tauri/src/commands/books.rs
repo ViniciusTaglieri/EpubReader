@@ -31,7 +31,7 @@ pub fn list_books(state: State<'_, AppState>) -> Result<Vec<BookDto>, AppError> 
 pub fn get_book(book_id: String, state: State<'_, AppState>) -> Result<BookDetailDto, AppError> {
     let connection = state.db.connect()?;
     let book = books::get_book(&connection, &book_id)?
-        .ok_or_else(|| AppError::new("book_not_found", "Livro nao encontrado"))?;
+        .ok_or_else(|| AppError::new("book_not_found", "Livro não encontrado"))?;
     let manifest = parse_epub(book.file_path.as_ref())
         .ok()
         .map(|parsed| parsed.dto(&book_id));
@@ -42,7 +42,7 @@ pub fn get_book(book_id: String, state: State<'_, AppState>) -> Result<BookDetai
 pub fn delete_book(book_id: String, state: State<'_, AppState>) -> Result<(), AppError> {
     let connection = state.db.connect()?;
     books::get_book(&connection, &book_id)?
-        .ok_or_else(|| AppError::new("book_not_found", "Livro nao encontrado"))?;
+        .ok_or_else(|| AppError::new("book_not_found", "Livro não encontrado"))?;
     remove_book_storage(&state.paths.books_dir(), &book_id)?;
     books::delete_book(&connection, &book_id)?;
     Ok(())

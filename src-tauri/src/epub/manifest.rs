@@ -43,7 +43,7 @@ impl ParsedEpub {
                 .metadata
                 .title
                 .clone()
-                .unwrap_or_else(|| "Sem titulo".to_string()),
+                .unwrap_or_else(|| "Sem título".to_string()),
             author: self.metadata.author.clone(),
             spine: self.spine.clone(),
             toc: self.toc.clone(),

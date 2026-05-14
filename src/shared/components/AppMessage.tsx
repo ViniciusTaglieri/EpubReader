@@ -1,34 +1,34 @@
-import { useEffect } from "react";
-import { X } from "lucide-react";
+import { useEffect } from 'react'
+import { X } from 'lucide-react'
 
-export type AppMessageVariant = "success" | "error" | "warning";
+export type AppMessageVariant = 'success' | 'error' | 'warning'
 
 export type AppMessageData = {
-  text: string;
-  variant: AppMessageVariant;
-};
+  text: string
+  variant: AppMessageVariant
+}
 
 type AppMessageProps = {
-  message: AppMessageData;
-  onClose: () => void;
-  className?: string;
-};
+  message: AppMessageData
+  onClose: () => void
+  className?: string
+}
 
 const variantClasses: Record<AppMessageVariant, string> = {
-  success: "border-emerald-300/35 bg-emerald-400/12 text-emerald-50",
-  error: "border-red-300/35 bg-red-400/12 text-red-50",
-  warning: "border-amber-300/35 bg-amber-300/12 text-amber-50",
-};
+  success: 'border-emerald-300/35 bg-emerald-400/12 text-emerald-50',
+  error: 'border-red-300/35 bg-red-400/12 text-red-50',
+  warning: 'border-amber-300/35 bg-amber-300/12 text-amber-50',
+}
 
 export function AppMessage({
   message,
   onClose,
-  className = "",
+  className = '',
 }: AppMessageProps) {
   useEffect(() => {
-    const timeoutId = window.setTimeout(onClose, 5000);
-    return () => window.clearTimeout(timeoutId);
-  }, [message.text, message.variant]);
+    const timeoutId = window.setTimeout(onClose, 5000)
+    return () => window.clearTimeout(timeoutId)
+  }, [message.text, message.variant])
 
   return (
     <div
@@ -46,5 +46,5 @@ export function AppMessage({
         <X size={16} />
       </button>
     </div>
-  );
+  )
 }
