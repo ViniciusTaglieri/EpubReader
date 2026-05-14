@@ -3,6 +3,7 @@ name = "epub-reader"
 version = "0.1.0"
 description = "Local desktop EPUB reader."
 authors = ["Reading System"]
+license = "MIT"
 edition = "2021"
 
 [package.metadata]
