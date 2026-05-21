@@ -11,6 +11,7 @@ import ePub from 'epubjs'
 import { commands, errorMessage } from '../../shared/tauri/commands'
 import type { BookDetailDto, ReadingLocator } from '../../shared/types/books'
 import { loadLibraryPreferences } from '../library/libraryPreferences'
+import type { ResolvedLibraryTheme } from '../library/libraryPreferences'
 import {
   DEFAULT_READER_SETTINGS,
   applyReaderSettings,
@@ -32,6 +33,7 @@ import { ReaderSettingsPanel, TocPanel } from './ReaderPanels'
 
 type ReaderPageProps = {
   bookId: string
+  appTheme: ResolvedLibraryTheme
   onBack: () => void
 }
 
@@ -39,7 +41,7 @@ type ReaderTocItem = EpubTocItem & {
   depth: number
 }
 
-export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
+export function ReaderPage({ bookId, appTheme, onBack }: ReaderPageProps) {
   const viewerRef = useRef<HTMLDivElement | null>(null)
   const epubRef = useRef<EpubBook | null>(null)
   const renditionRef = useRef<Rendition | null>(null)
@@ -377,7 +379,12 @@ export function ReaderPage({ bookId, onBack }: ReaderPageProps) {
         )
 
   return (
-    <main className="flex h-full flex-col overflow-hidden bg-[#151412] text-neutral-100">
+    <main
+      data-library-theme={appTheme}
+      className={`flex h-full flex-col overflow-hidden text-neutral-100 ${
+        appTheme === 'light' ? 'bg-[#f7f2e8]' : 'bg-[#151412]'
+      }`}
+    >
       <header className="flex h-16 shrink-0 items-center gap-4 border-b border-white/10 bg-black/25 px-5">
         <button
           type="button"

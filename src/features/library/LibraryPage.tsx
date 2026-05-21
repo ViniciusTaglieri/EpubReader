@@ -6,9 +6,7 @@ import { ImportButton } from './ImportButton'
 import { epubPathsFromDrop, epubPathsFromTauriDragDrop } from './importPaths'
 import { filterAndSortBooks, type LibraryFilters } from './libraryFilters'
 import {
-  loadLibraryPreferences,
   resolveLibraryTheme,
-  saveLibraryPreferences,
   type LibraryPreferences,
 } from './libraryPreferences'
 import { commands, errorMessage } from '../../shared/tauri/commands'
@@ -39,20 +37,22 @@ import { CollectionDialog } from './CollectionDialog'
 import { CollectionsOverview } from './CollectionsOverview'
 
 type LibraryPageProps = {
+  preferences: LibraryPreferences
+  prefersLightTheme: boolean
+  onPreferencesChange: (preferences: Partial<LibraryPreferences>) => void
   onOpenBook: (book: BookDto) => void
 }
 
-export function LibraryPage({ onOpenBook }: LibraryPageProps) {
+export function LibraryPage({
+  preferences,
+  prefersLightTheme,
+  onPreferencesChange,
+  onOpenBook,
+}: LibraryPageProps) {
   const [books, setBooks] = useState<BookDto[]>([])
   const covers = useBookCovers(books)
   const [filters, setFilters] = useState<LibraryFilters>(() =>
     loadSavedFilters(),
-  )
-  const [preferences, setPreferences] = useState<LibraryPreferences>(() =>
-    loadLibraryPreferences(),
-  )
-  const [prefersLightTheme, setPrefersLightTheme] = useState(
-    () => window.matchMedia('(prefers-color-scheme: light)').matches,
   )
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
     loadReaderSettings(),
@@ -94,18 +94,6 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
   useEffect(() => {
     saveLibraryView(view)
   }, [view])
-
-  useEffect(() => {
-    saveLibraryPreferences(preferences)
-  }, [preferences])
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: light)')
-    const updatePreference = () => setPrefersLightTheme(mediaQuery.matches)
-    updatePreference()
-    mediaQuery.addEventListener('change', updatePreference)
-    return () => mediaQuery.removeEventListener('change', updatePreference)
-  }, [])
 
   useEffect(() => {
     saveReaderSettings(readerSettings)
@@ -415,9 +403,7 @@ export function LibraryPage({ onOpenBook }: LibraryPageProps) {
               readerSettings={readerSettings}
               onViewChange={setView}
               onSidebarCollapsedChange={setSidebarCollapsed}
-              onPreferencesChange={(next) =>
-                setPreferences((current) => ({ ...current, ...next }))
-              }
+              onPreferencesChange={onPreferencesChange}
               onReaderSettingsChange={(next) =>
                 setReaderSettings((current) => ({ ...current, ...next }))
               }
